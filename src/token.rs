@@ -16,12 +16,17 @@ use super::hmac;
 use super::interface;
 use super::mechanism;
 use super::object;
-use super::pbkdf2;
 use super::rsa;
 use super::sp800_108;
 use super::sshkdf;
 use super::storage;
 use super::tlskdf;
+
+#[cfg(not(feature = "pure-rust"))]
+use super::pbkdf2;
+
+#[cfg(feature = "pure-rust")]
+use super::rust_pbkdf2;
 
 use super::{err_rv, get_random_data, sizeof, to_rv};
 use error::{KError, KResult};
@@ -206,13 +211,18 @@ impl Token {
         hash::register(&mut token.mechanisms, &mut token.object_factories);
         hmac::register(&mut token.mechanisms, &mut token.object_factories);
         hkdf::register(&mut token.mechanisms, &mut token.object_factories);
-        pbkdf2::register(&mut token.mechanisms, &mut token.object_factories);
         sp800_108::register(&mut token.mechanisms, &mut token.object_factories);
         sshkdf::register(&mut token.mechanisms, &mut token.object_factories);
         tlskdf::register(&mut token.mechanisms, &mut token.object_factories);
 
         #[cfg(feature = "fips")]
         fips::register(&mut token.mechanisms, &mut token.object_factories);
+
+        #[cfg(feature = "pure-rust")]
+        rust_pbkdf2::register(&mut token.mechanisms, &mut token.object_factories);
+        
+        #[cfg(not(feature = "pure-rust"))]
+        pbkdf2::register(&mut token.mechanisms, &mut token.object_factories);
 
         if token.filename.len() > 0 {
             match token.storage.open(&token.filename) {

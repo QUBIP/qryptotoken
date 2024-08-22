@@ -52,11 +52,17 @@ mod eddsa;
 mod hash;
 mod hkdf;
 mod hmac;
-mod pbkdf2;
 mod rsa;
 mod sp800_108;
 mod sshkdf;
 mod tlskdf;
+
+
+#[cfg(not(feature = "pure-rust"))]
+mod pbkdf2;
+
+#[cfg(feature = "pure-rust")]
+mod rust_pbkdf2;
 
 /* Helper code */
 mod kasn1;
