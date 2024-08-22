@@ -45,7 +45,6 @@ mod fips;
 mod ossl;
 
 mod aes;
-mod drbg;
 mod ecc;
 mod ecc_misc;
 mod eddsa;
@@ -63,6 +62,10 @@ mod pbkdf2;
 
 #[cfg(feature = "pure-rust")]
 mod rust_pbkdf2;
+
+#[cfg(not(feature = "pure-rust"))]
+mod drbg;
+
 
 /* Helper code */
 mod kasn1;
@@ -104,7 +107,11 @@ macro_rules! ok_or_ret {
     };
 }
 
+#[cfg(not(feature = "pure-rust"))]
 thread_local!(static CSPRNG: RefCell<RNG> = RefCell::new(RNG::new("HMAC DRBG SHA256").unwrap()));
+
+#[cfg(feature = "pure-rust")]
+thread_local!(static CSPRNG: RefCell<RNG> = RefCell::new(RNG::new().unwrap()));
 
 pub fn get_random_data(data: &mut [u8]) -> KResult<()> {
     CSPRNG.with(|rng| rng.borrow_mut().generate_random(data))
