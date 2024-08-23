@@ -56,6 +56,8 @@ mod sp800_108;
 mod sshkdf;
 mod tlskdf;
 
+mod rust_aes;
+
 
 #[cfg(not(feature = "pure-rust"))]
 mod pbkdf2;
