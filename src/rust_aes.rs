@@ -1,4 +1,4 @@
-use aes_gcm::{aead::{Aead, KeyInit, OsRng}, AeadCore, Aes256Gcm, Key, Nonce};
+use aes_gcm::{aead::{Aead, KeyInit, OsRng}, AeadCore, Aes128Gcm, Aes256Gcm, Key, Nonce};
 use zeroize::Zeroize;
 
 use crate::attribute;
@@ -38,13 +38,67 @@ pub struct AesKeyFactory {
     attributes: Vec<ObjectAttr>,
 }
 
-impl AesKeyFactory {}
+impl AesKeyFactory {
+    fn new() -> AesKeyFactory {
+        let mut data: AesKeyFactory = AesKeyFactory {
+            attributes: Vec::new(),
+        };
+        data.attributes.append(&mut data.init_common_object_attrs());
+        data.attributes.append(&mut data.init_common_storage_attrs());
+        data.attributes.append(&mut data.init_common_key_attrs());
+        data.attributes.append(&mut data.init_common_secret_key_attrs());
+        data.attributes.push(attr_element!(CKA_VALUE; OAFlags::Defval | OAFlags::Sensitive | OAFlags::RequiredOnCreate | OAFlags::SettableOnlyOnCreate; from_bytes; val Vec::new()));
+        data.attributes.push(attr_element!(CKA_VALUE_LEN; OAFlags::RequiredOnGenerate; from_bytes; val Vec::new()));
 
-impl ObjectFactory for AesKeyFactory {}
+        /* default to private */
+        let private = attr_element!(CKA_PRIVATE; OAFlags::Defval | OAFlags::ChangeOnCopy; from_bool; val true);
+        match data
+            .attributes
+            .iter()
+            .position(|x| x.get_type() == CKA_PRIVATE)
+        {
+            Some(idx) => data.attributes[idx] = private,
+            None => data.attributes.push(private),
+        }
+
+        data
+    }
+}
+
+impl ObjectFactory for AesKeyFactory {
+    fn create(&self, template: &[CK_ATTRIBUTE]) -> KResult<Object> { todo!()}
+
+    fn get_attributes(&self) -> &Vec<ObjectAttr> {todo!()}
+
+    fn export_for_wrapping(&self, key: &Object) -> KResult<Vec<u8>> {todo!()}
+
+    fn import_from_wrapped(
+        &self,
+        mut data: Vec<u8>,
+        template: &[CK_ATTRIBUTE],
+    ) -> KResult<Object> {todo!()}
+
+    fn default_object_derive(
+            &self,
+            template: &[CK_ATTRIBUTE],
+            origin: &Object,
+        ) -> KResult<Object> {todo!()}
+
+    fn as_secret_key_factory(&self) -> KResult<&dyn SecretKeyFactory> {todo!()}
+}
 
 impl CommonKeyFactory for AesKeyFactory {}
 
-impl SecretKeyFactory for AesKeyFactory {}
+impl SecretKeyFactory for AesKeyFactory {
+    fn default_object_unwrap(
+            &self,
+            template: &[CK_ATTRIBUTE],
+        ) -> KResult<Object> {todo!()}
+
+    fn set_key(&self, obj: &mut Object, key: Vec<u8>) -> KResult<()> {todo!()}
+
+    fn recommend_key_size(&self, _: usize) -> KResult<usize> {todo!()}
+}
 
 static AES_KEY_FACTORY: Lazy<Box<dyn ObjectFactory>> =
     Lazy::new(|| Box::new(AesKeyFactory::new()));
@@ -54,7 +108,48 @@ struct AesMechanism {
     info: CK_MECHANISM_INFO,
 }
 
-impl Mechanism for AesMechanism {}
+impl Mechanism for AesMechanism {
+    fn info(&self) -> &CK_MECHANISM_INFO {todo!()}
+
+    fn encryption_new(
+            &self,
+            _: &CK_MECHANISM,
+            _: &object::Object,
+        ) -> KResult<Box<dyn Encryption>> {todo!()}
+
+    fn decryption_new(
+            &self,
+            _: &CK_MECHANISM,
+            _: &object::Object,
+        ) -> KResult<Box<dyn Decryption>> {todo!()}
+    
+    fn generate_key(
+            &self,
+            _: &CK_MECHANISM,
+            _: &[CK_ATTRIBUTE],
+            _: &Mechanisms,
+            _: &ObjectFactories,
+        ) -> KResult<Object> {todo!()}
+
+    fn wrap_key(
+            &self,
+            _: &CK_MECHANISM,
+            _: &object::Object,
+            _: &object::Object,
+            _: CK_BYTE_PTR,
+            _: CK_ULONG_PTR,
+            _: &Box<dyn ObjectFactory>,
+        ) -> KResult<()> {todo!()}
+
+    fn unwrap_key(
+            &self,
+            _: &CK_MECHANISM,
+            _: &object::Object,
+            _: &[u8],
+            _: &[CK_ATTRIBUTE],
+            _: &Box<dyn ObjectFactory>,
+        ) -> KResult<Object> {todo!()}
+}
 
 pub fn register(mechs: &mut Mechanisms, ot: &mut ObjectFactories) {
     AesOperation::register_mechanisms(mechs);
@@ -63,9 +158,15 @@ pub fn register(mechs: &mut Mechanisms, ot: &mut ObjectFactories) {
 }
 
 #[derive(Debug)]
-struct AesKey {}
+struct AesKey {
+    raw: Vec<u8>,
+}
 
-impl Drop for AesKey {}
+impl Drop for AesKey {
+    fn drop(&mut self) {
+        self.raw.zeroize()
+    }
+}
 
 
 fn new_mechanism(flags: CK_FLAGS) -> Box<dyn Mechanism> {
@@ -82,9 +183,6 @@ fn new_mechanism(flags: CK_FLAGS) -> Box<dyn Mechanism> {
 #[derive(Debug)]
 struct AesParams {
     iv: Vec<u8>,
-    maxblocks: u128,
-    ctsmode: u8,
-    datalen: usize,
     aad: Vec<u8>,
     taglen: usize,
 }
@@ -96,9 +194,7 @@ struct AesOperation {
     params: AesParams,
     finalized: bool,
     in_use: bool,
-    ctx: EvpCipherCtx,
     finalbuf: Vec<u8>,
-    blockctr: u128,
 }
 
 impl Drop for AesOperation {
@@ -107,10 +203,94 @@ impl Drop for AesOperation {
     }
 }
 
-impl AesOperation {}
+enum AesGcmCipher {
+    Aes128(Aes128Gcm),
+    Aes256(Aes256Gcm),
+}
 
-impl MechOperation for AesOperation {}
+impl AesOperation {
+    fn register_mechanisms(mechs: &mut Mechanisms) {todo!()}
 
-impl Encryption for AesOperation {}
+    fn init_params(mech: &CK_MECHANISM) -> KResult<AesParams> {todo!()}
 
-impl Decryption for AesOperation {}
+    fn init_cipher(
+        mech: CK_MECHANISM_TYPE,
+        key: &[u8],
+    ) -> KResult<AesGcmCipher> {todo!()}
+
+    fn encrypt_initialize(&mut self) -> KResult<()> {todo!()}
+    
+    fn decrypt_initialize(&mut self) -> KResult<()> {todo!()}
+
+    fn encrypt_new(mech: &CK_MECHANISM, key: &Object) -> KResult<AesOperation> {todo!()} 
+
+    fn decrypt_new(mech: &CK_MECHANISM, key: &Object) -> KResult<AesOperation> {todo!()} 
+
+    fn wrap(
+        mech: &CK_MECHANISM,
+        wrapping_key: &Object,
+        mut keydata: Vec<u8>,
+        output: CK_BYTE_PTR,
+        output_len: CK_ULONG_PTR,
+    ) -> KResult<()> {todo!()}
+    
+    fn unwrap(
+        mech: &CK_MECHANISM,
+        wrapping_key: &Object,
+        data: &[u8],
+    ) -> KResult<Vec<u8>> {todo!()}
+}
+
+impl MechOperation for AesOperation {
+    fn finalized(&self) -> bool {
+        self.finalized
+    }
+}
+
+impl Encryption for AesOperation {
+    fn encrypt(
+        &mut self,
+        plain: &[u8],
+        cipher: CK_BYTE_PTR,
+        cipher_len: CK_ULONG_PTR,
+    ) -> KResult<()> {todo!()}
+
+    fn encrypt_update(
+            &mut self,
+            _plain: &[u8],
+            _cipher: CK_BYTE_PTR,
+            _cipher_len: CK_ULONG_PTR,
+        ) -> KResult<()> {todo!()}
+
+    fn encrypt_final(
+            &mut self,
+            _cipher: CK_BYTE_PTR,
+            _cipher_len: CK_ULONG_PTR,
+        ) -> KResult<()> {todo!()}
+
+    fn encryption_len(&self, _data_len: CK_ULONG) -> KResult<usize> {todo!()}
+}
+
+impl Decryption for AesOperation {
+    fn decrypt(
+            &mut self,
+            _cipher: &[u8],
+            _plain: CK_BYTE_PTR,
+            _plain_len: CK_ULONG_PTR,
+        ) -> KResult<()> {todo!()}
+
+    fn decrypt_update(
+            &mut self,
+            _cipher: &[u8],
+            _plain: CK_BYTE_PTR,
+            _plain_len: CK_ULONG_PTR,
+        ) -> KResult<()> {todo!()}
+
+    fn decrypt_final(
+            &mut self,
+            _plain: CK_BYTE_PTR,
+            _plain_len: CK_ULONG_PTR,
+        ) -> KResult<()> {todo!()}
+
+    fn decryption_len(&self, _data_len: CK_ULONG) -> KResult<usize> {todo!()}
+}
