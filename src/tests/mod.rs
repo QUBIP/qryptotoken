@@ -221,20 +221,27 @@ mod init;
 
 mod mechs;
 
+#[cfg(not(feature = "pure-rust"))]
 mod aes;
 
+#[cfg(not(feature = "pure-rust"))]
 mod rsa;
 
 mod session;
 
+#[cfg(not(feature = "pure-rust"))]
 mod ecc;
 
+#[cfg(not(feature = "pure-rust"))]
 mod ecdh;
 
+#[cfg(not(feature = "pure-rust"))]
 mod ecdh_vectors;
 
+#[cfg(not(feature = "pure-rust"))]
 mod eddsa;
 
+#[cfg(not(feature = "pure-rust"))]
 mod hashes;
 
 mod signatures;
@@ -245,8 +252,14 @@ mod kdf_vectors;
 
 mod kdfs;
 
+#[cfg(not(feature = "pure-rust"))]
 mod mac_vectors;
 
+#[cfg(not(feature = "pure-rust"))]
 mod aes_kw_vectors;
 
+#[cfg(not(feature = "pure-rust"))]
 mod tls;
+
+#[cfg(feature = "pure-rust")]
+mod rust_aes;
