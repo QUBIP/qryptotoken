@@ -25,13 +25,13 @@ use super::tlskdf;
 use super::aes;
 
 #[cfg(feature = "pure-rust")]
-use super::rust_aes;
+use super::rust_aes as aes;
 
 #[cfg(not(feature = "pure-rust"))]
 use super::pbkdf2;
 
 #[cfg(feature = "pure-rust")]
-use super::rust_pbkdf2;
+use super::rust_pbkdf2 as pbkdf2;
 
 use super::{err_rv, get_random_data, sizeof, to_rv};
 use error::{KError, KResult};
@@ -226,13 +226,13 @@ impl Token {
         aes::register(&mut token.mechanisms, &mut token.object_factories);
         
         #[cfg(feature = "pure-rust")]
-        rust_aes::register(&mut token.mechanisms, &mut token.object_factories);
+        aes::register(&mut token.mechanisms, &mut token.object_factories);
 
         #[cfg(not(feature = "pure-rust"))]
         pbkdf2::register(&mut token.mechanisms, &mut token.object_factories);
 
         #[cfg(feature = "pure-rust")]
-        rust_pbkdf2::register(&mut token.mechanisms, &mut token.object_factories);
+        pbkdf2::register(&mut token.mechanisms, &mut token.object_factories);
 
         if token.filename.len() > 0 {
             match token.storage.open(&token.filename) {
