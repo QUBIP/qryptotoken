@@ -44,7 +44,6 @@ mod fips;
 #[cfg(not(feature = "fips"))]
 mod ossl;
 
-mod aes;
 mod ecc;
 mod ecc_misc;
 mod eddsa;
@@ -56,8 +55,11 @@ mod sp800_108;
 mod sshkdf;
 mod tlskdf;
 
-mod rust_aes;
+#[cfg(not(feature = "pure-rust"))]
+mod aes;
 
+#[cfg(feature = "pure-rust")]
+mod rust_aes;
 
 #[cfg(not(feature = "pure-rust"))]
 mod pbkdf2;

@@ -5,7 +5,6 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::vec::Vec;
 
-use super::aes;
 use super::attribute;
 use super::ecc;
 use super::eddsa;
@@ -21,6 +20,12 @@ use super::sp800_108;
 use super::sshkdf;
 use super::storage;
 use super::tlskdf;
+
+#[cfg(not(feature = "pure-rust"))]
+use super::aes;
+
+#[cfg(feature = "pure-rust")]
+use super::rust_aes;
 
 #[cfg(not(feature = "pure-rust"))]
 use super::pbkdf2;
@@ -204,7 +209,6 @@ impl Token {
 
         /* register mechanisms and factories */
         object::register(&mut token.mechanisms, &mut token.object_factories);
-        aes::register(&mut token.mechanisms, &mut token.object_factories);
         rsa::register(&mut token.mechanisms, &mut token.object_factories);
         ecc::register(&mut token.mechanisms, &mut token.object_factories);
         eddsa::register(&mut token.mechanisms, &mut token.object_factories);
@@ -218,11 +222,17 @@ impl Token {
         #[cfg(feature = "fips")]
         fips::register(&mut token.mechanisms, &mut token.object_factories);
 
-        #[cfg(feature = "pure-rust")]
-        rust_pbkdf2::register(&mut token.mechanisms, &mut token.object_factories);
+        #[cfg(not(feature = "pure-rust"))]
+        aes::register(&mut token.mechanisms, &mut token.object_factories);
         
+        #[cfg(feature = "pure-rust")]
+        rust_aes::register(&mut token.mechanisms, &mut token.object_factories);
+
         #[cfg(not(feature = "pure-rust"))]
         pbkdf2::register(&mut token.mechanisms, &mut token.object_factories);
+
+        #[cfg(feature = "pure-rust")]
+        rust_pbkdf2::register(&mut token.mechanisms, &mut token.object_factories);
 
         if token.filename.len() > 0 {
             match token.storage.open(&token.filename) {
