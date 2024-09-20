@@ -142,11 +142,29 @@ impl SecretKeyFactory for AesKeyFactory {
     fn default_object_unwrap(
             &self,
             template: &[CK_ATTRIBUTE],
-        ) -> KResult<Object> {todo!()}
+        ) -> KResult<Object> {
+            ObjectFactory::default_object_unwrap(self, template)
+        }
 
-    fn set_key(&self, obj: &mut Object, key: Vec<u8>) -> KResult<()> {todo!()}
+    fn set_key(&self, obj: &mut Object, key: Vec<u8>) -> KResult<()> {
+        let keylen = key.len();
+        check_key_len(keylen)?;
+        obj.set_attr(from_bytes(CKA_VALUE, key))?;
+        self.set_key_len(obj, keylen)?;
+        Ok(())
+    }
 
-    fn recommend_key_size(&self, _: usize) -> KResult<usize> {todo!()}
+    fn recommend_key_size(&self, max: usize) -> KResult<usize> {
+        if max >= MAX_AES_SIZE_BYTES {
+            Ok(MAX_AES_SIZE_BYTES)
+        } else if max > MID_AES_SIZE_BYTES {
+            Ok(MID_AES_SIZE_BYTES)
+        } else if max > MIN_AES_SIZE_BYTES {
+            Ok(MIN_AES_SIZE_BYTES)
+        } else {
+            err_rv!(CKR_KEY_SIZE_RANGE)
+        }
+    }
 }
 
 static AES_KEY_FACTORY: Lazy<Box<dyn ObjectFactory>> =
