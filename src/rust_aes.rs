@@ -22,13 +22,13 @@ use once_cell::sync::Lazy;
 use std::fmt::Debug;
 
 pub const MIN_AES_SIZE_BYTES: usize = 16; /* 128 bits */
-pub const MID_AES_SIZE_BYTES: usize = 24; /* 192 bits */
+pub const MID_AES_SIZE_BYTES: usize = 32; /* 192 bits -> 256 as there is no 192 rust implementation */
 pub const MAX_AES_SIZE_BYTES: usize = 32; /* 256 bits */
 pub const AES_BLOCK_SIZE: usize = 16;
 
 fn check_key_len(len: usize) -> KResult<()> {
     match len {
-        16 | 24 | 32 => Ok(()),
+        16 | 32 => Ok(()),
         _ => err_rv!(CKR_KEY_SIZE_RANGE),
     }
 }
@@ -66,25 +66,74 @@ impl AesKeyFactory {
 }
 
 impl ObjectFactory for AesKeyFactory {
-    fn create(&self, template: &[CK_ATTRIBUTE]) -> KResult<Object> { todo!()}
+    fn create(&self, template: &[CK_ATTRIBUTE]) -> KResult<Object> {
+        let mut obj = self.default_object_create(template)?;
+        let len = self.get_key_buffer_len(&obj)?;
+        check_key_len(len)?;
+        if !obj.check_or_set_attr(from_ulong(CKA_VALUE_LEN, len as CK_ULONG))? {
+            return err_rv!(CKR_ATTRIBUTE_VALUE_INVALID);
+        }
 
-    fn get_attributes(&self) -> &Vec<ObjectAttr> {todo!()}
+        Ok(obj)
+    }
 
-    fn export_for_wrapping(&self, key: &Object) -> KResult<Vec<u8>> {todo!()}
+    fn get_attributes(&self) -> &Vec<ObjectAttr> {
+        &self.attributes
+    }
+
+    fn export_for_wrapping(&self, key: &Object) -> KResult<Vec<u8>> {
+        SecretKeyFactory::export_for_wrapping(self, key)
+    }
 
     fn import_from_wrapped(
         &self,
         mut data: Vec<u8>,
         template: &[CK_ATTRIBUTE],
-    ) -> KResult<Object> {todo!()}
+    ) -> KResult<Object> {
+        /* AES keys can only be 16, (not for Rust implementation 24), 32 bytes long,
+         * ensure we allow only these sizes */
+         match template.iter().position(|x| x.type_ == CKA_VALUE_LEN) {
+            Some(idx) => {
+                let len = template[idx].to_ulong()? as usize;
+                if len > data.len() {
+                    data.zeroize();
+                    return err_rv!(CKR_KEY_SIZE_RANGE);
+                }
+                if len < data.len() {
+                    unsafe { data.set_len(len) };
+                }
+            }
+            None => (),
+        }
+        match check_key_len(data.len()) {
+            Ok(_) => (),
+            Err(e) => {
+                data.zeroize();
+                return Err(e);
+            }
+        }
+        SecretKeyFactory::import_from_wrapped(self, data, template)
+    }
 
     fn default_object_derive(
             &self,
             template: &[CK_ATTRIBUTE],
             origin: &Object,
-        ) -> KResult<Object> {todo!()}
+        ) -> KResult<Object> {
+            let obj = self.internal_object_derive(template, origin)?;
 
-    fn as_secret_key_factory(&self) -> KResult<&dyn SecretKeyFactory> {todo!()}
+            let key_len = self.get_key_len(&obj);
+            if key_len != 0 {
+                if check_key_len(key_len).is_err() {
+                    return err_rv!(CKR_TEMPLATE_INCONSISTENT);
+                }
+            }
+            Ok(obj)
+        }
+
+    fn as_secret_key_factory(&self) -> KResult<&dyn SecretKeyFactory> {
+        Ok(self)
+    }
 }
 
 impl CommonKeyFactory for AesKeyFactory {}
