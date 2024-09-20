@@ -44,7 +44,7 @@ uuid = { version = "1.4.1", features = ["v4"] }
 zeroize = "1.6.0"
 
 [features]
-default = ["ossl"]
+default = ["pure-rust"]
 
 ossl = []
 

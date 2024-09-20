@@ -244,12 +244,15 @@ mod eddsa;
 #[cfg(not(feature = "pure-rust"))]
 mod hashes;
 
+#[cfg(not(feature = "pure-rust"))]
 mod signatures;
 
 mod keys;
 
+#[cfg(not(feature = "pure-rust"))]
 mod kdf_vectors;
 
+#[cfg(not(feature = "pure-rust"))]
 mod kdfs;
 
 #[cfg(not(feature = "pure-rust"))]
