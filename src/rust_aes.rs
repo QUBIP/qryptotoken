@@ -176,46 +176,104 @@ struct AesMechanism {
 }
 
 impl Mechanism for AesMechanism {
-    fn info(&self) -> &CK_MECHANISM_INFO {todo!()}
+    fn info(&self) -> &CK_MECHANISM_INFO {
+        &self.info
+    }
 
     fn encryption_new(
             &self,
-            _: &CK_MECHANISM,
-            _: &object::Object,
-        ) -> KResult<Box<dyn Encryption>> {todo!()}
+            mech: &CK_MECHANISM,
+            key: &Object,
+        ) -> KResult<Box<dyn Encryption>> {
+            if self.info.flags & CKF_ENCRYPT != CKF_ENCRYPT {
+                return err_rv!(CKR_MECHANISM_INVALID);
+            }
+            match key.check_key_ops(CKO_SECRET_KEY, CKK_AES, CKA_ENCRYPT) {
+                Ok(_) => (),
+                Err(e) => return Err(e),
+            }
+            Ok(Box::new(AesOperation::encrypt_new(mech, key)?))
+        }
 
     fn decryption_new(
             &self,
-            _: &CK_MECHANISM,
-            _: &object::Object,
-        ) -> KResult<Box<dyn Decryption>> {todo!()}
+            mech: &CK_MECHANISM,
+            key: &Object,
+        ) -> KResult<Box<dyn Decryption>> {
+            if self.info.flags & CKF_DECRYPT != CKF_DECRYPT {
+                return err_rv!(CKR_MECHANISM_INVALID);
+            }
+            match key.check_key_ops(CKO_SECRET_KEY, CKK_AES, CKA_DECRYPT) {
+                Ok(_) => (),
+                Err(e) => return Err(e),
+            }
+            Ok(Box::new(AesOperation::decrypt_new(mech, key)?))
+        }
     
     fn generate_key(
             &self,
-            _: &CK_MECHANISM,
-            _: &[CK_ATTRIBUTE],
+            mech: &CK_MECHANISM,
+            template: &[CK_ATTRIBUTE],
             _: &Mechanisms,
             _: &ObjectFactories,
-        ) -> KResult<Object> {todo!()}
+        ) -> KResult<Object> {
+            if mech.mechanism != CKM_AES_KEY_GEN {
+                return err_rv!(CKR_MECHANISM_INVALID);
+            }
+            let mut key = AES_KEY_FACTORY.default_object_generate(template)?;
+            if !key.check_or_set_attr(attribute::from_ulong(
+                CKA_CLASS,
+                CKO_SECRET_KEY,
+            ))? {
+                return err_rv!(CKR_TEMPLATE_INCONSISTENT);
+            }
+            if !key
+                .check_or_set_attr(attribute::from_ulong(CKA_KEY_TYPE, CKK_AES))?
+            {
+                return err_rv!(CKR_TEMPLATE_INCONSISTENT);
+            }
+    
+            object::default_secret_key_generate(&mut key)?;
+            object::default_key_attributes(&mut key, mech.mechanism)?;
+            Ok(key) 
+        }
 
     fn wrap_key(
             &self,
-            _: &CK_MECHANISM,
-            _: &object::Object,
-            _: &object::Object,
-            _: CK_BYTE_PTR,
-            _: CK_ULONG_PTR,
-            _: &Box<dyn ObjectFactory>,
-        ) -> KResult<()> {todo!()}
+            mech: &CK_MECHANISM,
+            wrapping_key: &Object,
+            key: &Object,
+            data: CK_BYTE_PTR,
+            data_len: CK_ULONG_PTR,
+            key_template: &Box<dyn ObjectFactory>,
+        ) -> KResult<()> {
+            if self.info.flags & CKF_WRAP != CKF_WRAP {
+                return err_rv!(CKR_MECHANISM_INVALID);
+            }
+    
+            AesOperation::wrap(
+                mech,
+                wrapping_key,
+                key_template.export_for_wrapping(key)?,
+                data,
+                data_len,
+            )
+        }
 
     fn unwrap_key(
             &self,
-            _: &CK_MECHANISM,
-            _: &object::Object,
-            _: &[u8],
-            _: &[CK_ATTRIBUTE],
-            _: &Box<dyn ObjectFactory>,
-        ) -> KResult<Object> {todo!()}
+            mech: &CK_MECHANISM,
+            wrapping_key: &Object,
+            data: &[u8],
+            template: &[CK_ATTRIBUTE],
+            key_template: &Box<dyn ObjectFactory>,
+        ) -> KResult<Object> {
+            if self.info.flags & CKF_UNWRAP != CKF_UNWRAP {
+                return err_rv!(CKR_MECHANISM_INVALID);
+            }
+            let keydata = AesOperation::unwrap(mech, wrapping_key, data)?;
+            key_template.import_from_wrapped(keydata, template)
+        }
 }
 
 pub fn register(mechs: &mut Mechanisms, ot: &mut ObjectFactories) {
