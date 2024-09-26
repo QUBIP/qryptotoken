@@ -556,7 +556,16 @@ impl AesOperation {
         })
     }
 
-    fn decrypt_new(mech: &CK_MECHANISM, key: &Object) -> KResult<AesOperation> {todo!()} 
+    fn decrypt_new(mech: &CK_MECHANISM, key: &Object) -> KResult<AesOperation> {
+        Ok(AesOperation {
+            mech: mech.mechanism,
+            key: object_to_raw_key(key)?,
+            params: Self::init_params(mech)?,
+            finalized: false,
+            in_use: false,
+            finalbuf: Vec::new(),
+        })
+    } 
 
     fn wrap(
         mech: &CK_MECHANISM,
@@ -691,10 +700,71 @@ impl Encryption for AesOperation {
 impl Decryption for AesOperation {
     fn decrypt(
             &mut self,
-            _cipher: &[u8],
-            _plain: CK_BYTE_PTR,
-            _plain_len: CK_ULONG_PTR,
-        ) -> KResult<()> {todo!()}
+            cipher: &[u8],
+            plain: CK_BYTE_PTR,
+            plain_len: CK_ULONG_PTR,
+        ) -> KResult<()> {
 
-    fn decryption_len(&self, _data_len: CK_ULONG) -> KResult<usize> {todo!()}
+        if plain_len.is_null() {
+            return err_rv!(CKR_ARGUMENTS_BAD);
+        }
+        
+        let mut outlen = self.encryption_len(cipher.len() as u64)?;
+        
+        if plain.is_null() {
+            unsafe {
+                *plain_len = outlen as CK_ULONG;
+            }
+            return Ok(());
+        }
+
+        match self.mech {
+            #[cfg(False)]
+            CKM_AES_GCM => {
+                todo!()
+            }
+            _ => (),
+        }
+        if unsafe { *plain_len as usize } < outlen {
+            /* This is the only, non-fatal error */
+            unsafe { *plain_len = outlen as CK_ULONG };
+            return err_rv!(CKR_BUFFER_TOO_SMALL);
+        }
+        
+        let mut cipher_buf = cipher.as_ptr();
+        let mut cipher_len = cipher.len();
+
+        let key = self.key.raw.as_slice();
+        let key: &Key<Aes256Gcm> = key.into();
+        let ctx = Aes256Gcm::new(key.into());
+        // Forcing to 12 bytes because of aes-gcm expects that
+        let nonce = &self.params.iv[..12];
+        let payload = cipher;
+        let ciphertext = ctx.encrypt(nonce.into(),payload);
+        match ciphertext {
+            Ok(ct) => {
+                let ct_buf = ct.as_ptr();
+                let ct_len = ct.len();
+                // Safe to dereference cipher_len as we checked it's not null
+                let out_len = unsafe{*plain_len as usize};
+                assert!(ct_len <= out_len);
+                unsafe 
+                {
+                std::ptr::copy_nonoverlapping(ct_buf, plain, ct_len);
+                }
+
+            },
+            Err(e) => todo!("return error"),
+        }
+
+        Ok(())
+        }
+
+    fn decryption_len(&self, data_len: CK_ULONG) -> KResult<usize> {
+        let len: usize = match self.mech {
+            CKM_AES_GCM => data_len as usize + self.params.taglen,
+            _ => return err_rv!(CKR_GENERAL_ERROR),
+        };
+        Ok(len)
+    }
 }
