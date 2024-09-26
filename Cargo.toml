@@ -19,6 +19,7 @@ bindgen = "0.68"
 
 [dependencies]
 aes-gcm = "0.10.3"
+aes-kw = { version = "0.2.1", features = ["alloc"] }
 asn1 = "0.16.2"
 bitflags = "2.4.1"
 cfg-if = "1.0.0"
