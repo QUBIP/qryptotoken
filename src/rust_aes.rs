@@ -815,13 +815,14 @@ impl Encryption for AesOperation {
                 }
 
             },
-            Err(e) => todo!("return error"),
+            Err(e) => return err_rv!(CKR_GENERAL_ERROR),
         }
 
         Ok(())
     }
 
     fn encryption_len(&self, data_len: CK_ULONG) -> KResult<usize> {
+        println!("helo");
         let len: usize = match self.mech {
             CKM_AES_GCM => data_len as usize + self.params.taglen,
             _ => return err_rv!(CKR_GENERAL_ERROR),
