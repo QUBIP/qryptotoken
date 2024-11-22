@@ -2,3 +2,6 @@
 	path = openssl
 	url = https://github.com/simo5/openssl
 	branch = kryoptic
+[submodule "libcrux"]
+	path = libcrux
+	url = git@github.com:cryspen/libcrux.git
