@@ -155,5 +155,5 @@ fn main() {
 
     /* OpenSSL Cryptography */
     println!("cargo::rerun-if-changed={}", ".git/modules/openssl/HEAD");
-    build_ossl();
+    //build_ossl();
 }
