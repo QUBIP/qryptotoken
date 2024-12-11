@@ -5,6 +5,8 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::vec::Vec;
 
+use crate::mlkem;
+
 use super::attribute;
 use super::ecc;
 use super::eddsa;
@@ -218,6 +220,7 @@ impl Token {
         sp800_108::register(&mut token.mechanisms, &mut token.object_factories);
         sshkdf::register(&mut token.mechanisms, &mut token.object_factories);
         tlskdf::register(&mut token.mechanisms, &mut token.object_factories);
+        mlkem::register(&mut token.mechanisms, &mut token.object_factories);
 
         #[cfg(feature = "fips")]
         fips::register(&mut token.mechanisms, &mut token.object_factories);

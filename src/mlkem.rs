@@ -1,14 +1,13 @@
 use libcrux::kem::*;
 use rand::rngs::OsRng;
 
-// Import PKCS#11 structures and utilities
-use crate::attribute::*;
 use crate::error::*;
 use crate::interface::*;
 use crate::object::*;
 use crate::{attr_element, bytes_attr_not_empty, err_rv};
 use crate::mechanism::*;
 use crate::attribute::{from_bool, from_bytes, from_ulong};
+use crate::error;
 
 use once_cell::sync::Lazy;
 use std::fmt::Debug;
@@ -31,7 +30,6 @@ impl MlKemPubFactory {
 impl ObjectFactory for MlKemPubFactory {
     fn create(&self, template: &[CK_ATTRIBUTE]) -> KResult<Object> {
         let mut obj = self.default_object_create(template)?;
-        // Ensure public key attribute is valid
         if obj.get_attr(CKA_PUBLIC_KEY_INFO).is_none() {
             return err_rv!(CKR_TEMPLATE_INCOMPLETE);
         }
@@ -64,7 +62,6 @@ impl MlKemPrivFactory {
 impl ObjectFactory for MlKemPrivFactory {
     fn create(&self, template: &[CK_ATTRIBUTE]) -> KResult<Object> {
         let mut obj = self.default_object_create(template)?;
-        // Ensure private key value is valid
         if obj.get_attr(CKA_VALUE).is_none() {
             return err_rv!(CKR_TEMPLATE_INCOMPLETE);
         }
@@ -124,7 +121,6 @@ impl Mechanism for MlKemMechanism {
     let (_ss, ct) = public_key.encapsulate(&mut rng).expect("Failed to encapsulate key");
     let ct_bytes = ct.encode();
 
-    // Handle the output buffer for the wrapped key (ciphertext)
     if data.is_null() {
         unsafe { *data_len = ct_bytes.len() as CK_ULONG };
         return Ok(());
@@ -155,8 +151,6 @@ impl Mechanism for MlKemMechanism {
     let ss = ct.decapsulate(&private_key)
     .expect("Failed to decapsulate shared secret");
 
-
-    // Create the unwrapped key object
     let mut key_object = key_template.create(template)?;
     key_object.set_attr(from_bytes(CKA_VALUE, ss.encode()))?;
 
