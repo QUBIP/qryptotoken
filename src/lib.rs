@@ -70,6 +70,8 @@ mod rust_pbkdf2;
 #[cfg(not(feature = "pure-rust"))]
 mod drbg;
 
+#[cfg(feature = "pure-rust")]
+mod mlkem;
 
 /* Helper code */
 mod kasn1;
