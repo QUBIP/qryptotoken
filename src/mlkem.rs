@@ -8,7 +8,7 @@ use crate::interface::*;
 use crate::object::*;
 use crate::{attr_element, bytes_attr_not_empty, err_rv};
 use crate::mechanism::*;
-use attribute::{from_bool, from_bytes, from_ulong};
+use crate::attribute::{from_bool, from_bytes, from_ulong};
 
 use once_cell::sync::Lazy;
 use std::fmt::Debug;
@@ -172,7 +172,8 @@ impl Mechanism for MlKemMechanism {
         prikey_template: &[CK_ATTRIBUTE],
     ) -> KResult<(Object, Object)> {
         let mut rng = OsRng;
-        let (sk, pk) = key_gen(Algorithm::MlKem768, &mut rng).map_err(|_| CKR_GENERAL_ERROR)?;
+        let (sk, pk) = key_gen(Algorithm::MlKem768, &mut rng).expect("Key generation failed");
+
 
         let mut pubkey = PUBLIC_KEY_FACTORY.default_object_generate(pubkey_template)?;
         pubkey.set_attr(from_bytes(CKA_PUBLIC_KEY_INFO, pk.encode()))?;
