@@ -472,7 +472,7 @@ ULONGDEF(CK_XEDDSA_HASH_TYPE);
 #define CKK_SHA512_T_HMAC 0x00000045UL
 #define CKK_HSS 0x00000046UL
 #define CKK_VENDOR_DEFINED 0x80000000UL
-#define CKK_ML_KEM 0x80000001UL /* Custom key type for ML-based KEM */
+#define CKK_ML_KEM 0xCE534380 /* Custom key type for ML-based KEM */
 /* Deprecated */
 #ifdef PKCS11_DEPRECATED
 #define CKK_ECDSA 0x00000003UL
@@ -915,7 +915,8 @@ ULONGDEF(CK_XEDDSA_HASH_TYPE);
 #define CKM_HSS_KEY_PAIR_GEN 0x00004032UL
 #define CKM_HSS 0x00004033UL
 #define CKM_VENDOR_DEFINED             0x80000000UL
-#define CKM_ML_KEM 0x80001000UL /* Custom mechanism for ML-based KEM */
+#define CKM_ML_KEM_KEYGEN 0xCE534380 /* Custom mechanism for ML-based KEM */
+#define CKM_ML_KEM 0xCE534381 /* Custom mechanism for ML-based KEM */
 /* Deprecated */
 #ifdef PKCS11_DEPRECATED
 #define CKM_CAST5_KEY_GEN 0x00000320UL

@@ -186,9 +186,20 @@ pub fn register(mechs: &mut Mechanisms, ot: &mut ObjectFactories) {
         CKM_ML_KEM,
         Box::new(MlKemMechanism {
             info: CK_MECHANISM_INFO {
-                ulMinKeySize: 768,
-                ulMaxKeySize: 768,
-                flags: CKF_ENCRYPT | CKF_DECRYPT,
+                ulMinKeySize: 0,
+                ulMaxKeySize: 0,
+                flags: CKF_WRAP | CKF_UNWRAP,
+            },
+        }),
+    );
+
+    mechs.add_mechanism(
+        CKM_ML_KEM_KEYGEN,
+        Box::new(MlKemMechanism {
+            info: CK_MECHANISM_INFO {
+                ulMinKeySize: 0,
+                ulMaxKeySize: 0,
+                flags: CKF_GENERATE_KEY_PAIR
             },
         }),
     );

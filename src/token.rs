@@ -211,15 +211,15 @@ impl Token {
 
         /* register mechanisms and factories */
         object::register(&mut token.mechanisms, &mut token.object_factories);
-        rsa::register(&mut token.mechanisms, &mut token.object_factories);
-        ecc::register(&mut token.mechanisms, &mut token.object_factories);
-        eddsa::register(&mut token.mechanisms, &mut token.object_factories);
-        hash::register(&mut token.mechanisms, &mut token.object_factories);
-        hmac::register(&mut token.mechanisms, &mut token.object_factories);
-        hkdf::register(&mut token.mechanisms, &mut token.object_factories);
-        sp800_108::register(&mut token.mechanisms, &mut token.object_factories);
-        sshkdf::register(&mut token.mechanisms, &mut token.object_factories);
-        tlskdf::register(&mut token.mechanisms, &mut token.object_factories);
+        //rsa::register(&mut token.mechanisms, &mut token.object_factories);
+        //ecc::register(&mut token.mechanisms, &mut token.object_factories);
+        //eddsa::register(&mut token.mechanisms, &mut token.object_factories);
+        //hash::register(&mut token.mechanisms, &mut token.object_factories);
+        //hmac::register(&mut token.mechanisms, &mut token.object_factories);
+        //hkdf::register(&mut token.mechanisms, &mut token.object_factories);
+        //sp800_108::register(&mut token.mechanisms, &mut token.object_factories);
+        //sshkdf::register(&mut token.mechanisms, &mut token.object_factories);
+        //tlskdf::register(&mut token.mechanisms, &mut token.object_factories);
         mlkem::register(&mut token.mechanisms, &mut token.object_factories);
 
         #[cfg(feature = "fips")]
