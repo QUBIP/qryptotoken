@@ -41,18 +41,28 @@ use token::Token;
 #[cfg(feature = "fips")]
 mod fips;
 
-#[cfg(not(feature = "fips"))]
+#[cfg(not(feature = "pure-rust"))]
 mod ossl;
 
+#[cfg(not(feature = "pure-rust"))]
 mod ecc;
+#[cfg(not(feature = "pure-rust"))]
 mod ecc_misc;
+#[cfg(not(feature = "pure-rust"))]
 mod eddsa;
+#[cfg(not(feature = "pure-rust"))]
 mod hash;
+#[cfg(not(feature = "pure-rust"))]
 mod hkdf;
+#[cfg(not(feature = "pure-rust"))]
 mod hmac;
+#[cfg(not(feature = "pure-rust"))]
 mod rsa;
+#[cfg(not(feature = "pure-rust"))]
 mod sp800_108;
+#[cfg(not(feature = "pure-rust"))]
 mod sshkdf;
+#[cfg(not(feature = "pure-rust"))]
 mod tlskdf;
 
 #[cfg(not(feature = "pure-rust"))]

@@ -31,6 +31,7 @@ impl bindgen::callbacks::ParseCallbacks for Pkcs11Callbacks {
     }
 }
 
+#[allow(unused)]
 fn build_ossl() {
     let openssl_path = std::path::PathBuf::from("openssl")
         .canonicalize()
@@ -154,6 +155,8 @@ fn main() {
         .expect("Couldn't write bindings!");
 
     /* OpenSSL Cryptography */
+    #[cfg(not(feature = "pure-rust"))]
     println!("cargo::rerun-if-changed={}", ".git/modules/openssl/HEAD");
-    //build_ossl();
+    #[cfg(not(feature = "pure-rust"))]
+    build_ossl();
 }

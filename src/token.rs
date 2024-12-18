@@ -8,19 +8,28 @@ use std::vec::Vec;
 use crate::mlkem;
 
 use super::attribute;
+#[cfg(not(feature = "pure-rust"))]
 use super::ecc;
+#[cfg(not(feature = "pure-rust"))]
 use super::eddsa;
 use super::error;
+#[cfg(not(feature = "pure-rust"))]
 use super::hash;
+#[cfg(not(feature = "pure-rust"))]
 use super::hkdf;
+#[cfg(not(feature = "pure-rust"))]
 use super::hmac;
 use super::interface;
 use super::mechanism;
 use super::object;
+#[cfg(not(feature = "pure-rust"))]
 use super::rsa;
+#[cfg(not(feature = "pure-rust"))]
 use super::sp800_108;
+#[cfg(not(feature = "pure-rust"))]
 use super::sshkdf;
 use super::storage;
+#[cfg(not(feature = "pure-rust"))]
 use super::tlskdf;
 
 #[cfg(not(feature = "pure-rust"))]

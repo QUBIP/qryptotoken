@@ -356,36 +356,6 @@ impl AesOperation {
 
     fn init_params(mech: &CK_MECHANISM) -> KResult<AesParams> {
         match mech.mechanism {
-            #[cfg(False)]
-            CKM_AES_CCM => {
-                let params = cast_params!(mech, CK_CCM_PARAMS);
-                if params.ulNonceLen < 7 || params.ulNonceLen > 13 {
-                    return err_rv!(CKR_MECHANISM_PARAM_INVALID);
-                }
-                let l = 15 - params.ulNonceLen;
-                if params.ulDataLen == 0
-                    || params.ulDataLen > (1 << (8 * l))
-                    || (params.ulDataLen + params.ulMACLen)
-                        > u64::MAX as CK_ULONG
-                {
-                    return err_rv!(CKR_MECHANISM_PARAM_INVALID);
-                }
-                if params.ulAADLen > (u32::MAX - 1) as CK_ULONG {
-                    return err_rv!(CKR_MECHANISM_PARAM_INVALID);
-                }
-                match params.ulMACLen {
-                    4 | 6 | 8 | 10 | 12 | 14 | 16 => (),
-                    _ => return err_rv!(CKR_MECHANISM_PARAM_INVALID),
-                }
-                Ok(AesParams {
-                    iv: bytes_to_vec!(params.pNonce, params.ulNonceLen),
-                    maxblocks: 0,
-                    ctsmode: 0,
-                    datalen: params.ulDataLen as usize,
-                    aad: bytes_to_vec!(params.pAAD, params.ulAADLen),
-                    taglen: params.ulMACLen as usize,
-                })
-            }
             CKM_AES_GCM => {
                 let params = cast_params!(mech, CK_GCM_PARAMS);
                 if params.ulIvLen == 0 || params.ulIvLen > (1 << 32) - 1 {
@@ -409,95 +379,6 @@ impl AesOperation {
                     taglen: (params.ulTagBits as usize + 7) / 8,
                 })
             }
-            #[cfg(False)]
-            CKM_AES_CTR => {
-                let params = cast_params!(mech, CK_AES_CTR_PARAMS);
-                let iv = params.cb.to_vec();
-                let ctrbits = params.ulCounterBits as usize;
-                let mut maxblocks = 0u128;
-                if ctrbits < (AES_BLOCK_SIZE * 8) {
-                    /* FIXME: support arbitrary counterbits wrapping.
-                     * OpenSSL CTR mode is built to handle the whole IV
-                     * as a 128bit counter unconditionally.
-                     * For callers that want a smaller counterbit size all
-                     * we can do is to set a maximum number of blocks so
-                     * that the counter space does *not* wrap (because
-                     * openssl won't wrap it but proceed to increment the
-                     * octets part of the IV/Nonce). This means that for
-                     * applications that initialize the counter to a value
-                     * like 1 all will be fine, but application that
-                     * initialize the counter to a random value and expect
-                     * wrapping will see a failure instead of wrapping */
-                    maxblocks = (1 << ctrbits) - 1;
-                    let fulloctects = ctrbits / 8;
-                    let mut idx = 0;
-                    while fulloctects > idx {
-                        maxblocks -= (iv[15 - idx] as u128) << (idx * 8);
-                        idx += 1;
-                    }
-                    let part = ctrbits % 8;
-                    if part > 0 {
-                        maxblocks -= ((iv[15 - idx] as u128) & (part as u128))
-                            << (idx * 8);
-                    }
-                    if maxblocks == 0 {
-                        return err_rv!(CKR_MECHANISM_PARAM_INVALID);
-                    }
-                } else if ctrbits > (AES_BLOCK_SIZE * 8) {
-                    return err_rv!(CKR_MECHANISM_PARAM_INVALID);
-                }
-
-                Ok(AesParams {
-                    iv: iv,
-                    maxblocks: maxblocks,
-                    ctsmode: 0,
-                    datalen: 0,
-                    aad: Vec::new(),
-                    taglen: 0,
-                })
-            }
-            #[cfg(False)]
-            CKM_AES_CTS | CKM_AES_CBC | CKM_AES_CBC_PAD => {
-                if mech.ulParameterLen != (AES_BLOCK_SIZE as CK_ULONG) {
-                    return err_rv!(CKR_ARGUMENTS_BAD);
-                }
-                let mut ctsmode = 0u8;
-                if mech.mechanism == CKM_AES_CTS {
-                    ctsmode = 1u8;
-                }
-                Ok(AesParams {
-                    iv: bytes_to_vec!(mech.pParameter, mech.ulParameterLen),
-                    maxblocks: 0,
-                    ctsmode: ctsmode,
-                    datalen: 0,
-                    aad: Vec::new(),
-                    taglen: 0,
-                })
-            }
-            #[cfg(False)]
-            CKM_AES_ECB => Ok(AesParams {
-                iv: Vec::with_capacity(0),
-                maxblocks: 0,
-                ctsmode: 0,
-                datalen: 0,
-                aad: Vec::new(),
-                taglen: 0,
-            }),
-            #[cfg(False)]
-            #[cfg(not(feature = "fips"))]
-            CKM_AES_CFB8 | CKM_AES_CFB1 | CKM_AES_CFB128 | CKM_AES_OFB => {
-                if mech.ulParameterLen != (AES_BLOCK_SIZE as CK_ULONG) {
-                    return err_rv!(CKR_ARGUMENTS_BAD);
-                }
-                Ok(AesParams {
-                    iv: bytes_to_vec!(mech.pParameter, mech.ulParameterLen),
-                    maxblocks: 0,
-                    ctsmode: 0,
-                    datalen: 0,
-                    aad: Vec::new(),
-                    taglen: 0,
-                })
-            }
             CKM_AES_KEY_WRAP => {
                 let iv = match mech.ulParameterLen {
                     0 => Vec::new(),
@@ -510,7 +391,6 @@ impl AesOperation {
                     taglen: 0,
                 })
             }
-            #[cfg(False)]
             CKM_AES_KEY_WRAP_KWP => {
                 let iv = match mech.ulParameterLen {
                     0 => Vec::new(),
@@ -519,9 +399,9 @@ impl AesOperation {
                 };
                 Ok(AesParams {
                     iv: iv,
-                    maxblocks: 0,
-                    ctsmode: 0,
-                    datalen: 0,
+                    //maxblocks: 0,
+                    //ctsmode: 0,
+                    //datalen: 0,
                     aad: Vec::new(),
                     taglen: 0,
                 })
@@ -529,12 +409,6 @@ impl AesOperation {
             _ => err_rv!(CKR_MECHANISM_INVALID),
         }
     }
-
-    #[cfg(False)]
-    fn init_cipher(
-        mech: CK_MECHANISM_TYPE,
-        key: &[u8],
-    ) -> KResult<AesGcmCipher> {todo!()}
 
     fn encrypt_new(mech: &CK_MECHANISM, key: &Object) -> KResult<AesOperation> {
         Ok(AesOperation {
@@ -771,7 +645,7 @@ impl Encryption for AesOperation {
         }
         
         let mut outlen = self.encryption_len(plain.len() as u64)?;
-        
+
         if cipher.is_null() {
             unsafe {
                 *cipher_len = outlen as CK_ULONG;
