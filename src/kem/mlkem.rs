@@ -3,13 +3,21 @@ use crate::interface::*;
 use crate::object::{Object, ObjectFactories};
 use crate::storage::{self, Storage};
 use crate::token::Token;
-use crate::{KError, KResult};
+use crate::{err_rv, KError, KResult};
 use libcrux::kem::*;
+use crate::error;
 
-pub fn validate_params(
-    pparams: *const CK_NSS_KEM_PARAMETER_SET_TYPE,
-) -> KResult<()> {
-    todo!("Validate parameters for MLKEM");
+
+pub fn validate_params(params: CK_NSS_KEM_PARAMETER_SET_TYPE) -> KResult<()> {
+    if params == 0 {
+        return Err(KError::RvError(error::CkRvError { rv: CKR_MECHANISM_INVALID }))
+    } else {
+        match params {
+            CKP_NSS_ML_KEM_768 => return Ok(()),
+            _ =>  return Err(KError::RvError(error::CkRvError { rv: CKR_MECHANISM_PARAM_INVALID }))
+
+        };
+    }
 }
 
 #[cfg(any())]
