@@ -58,21 +58,36 @@ extern "C" fn fn_decapsulate(
 
     validate_mechanism(p_mechanism);
 
-    let ct_len = { todo!("extract ct_len from p_mechanism"); 0u64 };
+    let ct_len = {
+        todo!("extract ct_len from p_mechanism");
+        0u64
+    };
     if (ul_ciphertext_len < ct_len) {
         return CKR_ARGUMENTS_BAD;
     }
-    
+
     // Safe because we already checked phKey is not null
-    unsafe { *phKey = CK_INVALID_HANDLE; };
+    unsafe {
+        *phKey = CK_INVALID_HANDLE;
+    };
 
     let rstate = global_rlock!(STATE);
     let mut token = res_or_ret!(rstate.get_token_from_session_mut(s_handle));
 
-    let private_key = token.get_object_by_handle(h_private_key).expect("Cannot retrieve private key from handle");
+    let private_key = token
+        .get_object_by_handle(h_private_key)
+        .expect("Cannot retrieve private key from handle");
 
-    let e = kem::perform_decapsulation(&private_key, pCiphertext, ul_ciphertext_len, pTemplate, ulAttributeCount, phKey, &mut token);
-    
+    let e = kem::mlkem::decapsulate(
+        &private_key,
+        pCiphertext,
+        ul_ciphertext_len,
+        pTemplate,
+        ulAttributeCount,
+        phKey,
+        &mut token,
+    );
+
     // this is fishy!
     if (e != CKR_OK) {
         return CKR_GENERAL_ERROR;
