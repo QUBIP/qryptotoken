@@ -2574,6 +2574,8 @@ static INTERFACE_300: CK_INTERFACE = CK_INTERFACE {
 #[cfg(feature = "fips")]
 include!("fips/interface.rs");
 
+include!("kem/interface.rs");
+
 #[derive(Debug, Copy, Clone)]
 struct InterfaceData {
     interface: *const CK_INTERFACE,
