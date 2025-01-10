@@ -30,6 +30,9 @@ mod slot;
 mod storage;
 mod token;
 
+mod log;
+use crate::log::*;
+
 use error::{KError, KResult};
 use interface::*;
 use mechanism::Operation;
