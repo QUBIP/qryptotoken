@@ -5,28 +5,27 @@ extern "C" fn fn_encapsulate(
     s_handle: CK_SESSION_HANDLE,
     p_mechanism: CK_MECHANISM_PTR,
     h_public_key: CK_OBJECT_HANDLE,
-    p_template: CK_ATTRIBUTE_PTR,
+    _p_template: CK_ATTRIBUTE_PTR,
     _ul_attribute_count: CK_ULONG,
     p_h_key: /* out */ CK_OBJECT_HANDLE_PTR,
     p_ciphertext: /* out */ CK_BYTE_PTR,
     pul_ciphertextlen: /* out */ CK_ULONG_PTR,
 ) -> CK_RV {
-    if p_mechanism.is_null() || p_h_key.is_null() || p_template.is_null() {
+    if p_mechanism.is_null() || p_h_key.is_null() /* || p_template.is_null() */ {
         return CKR_ARGUMENTS_BAD;
     }
 
-    res_or_ret!(kem::validate_mechanism(p_mechanism));
+    let mechanism = res_or_ret!(kem::validate_mechanism(p_mechanism));
 
-    let ct_len = kem::get_ciphertext_len(p_mechanism);
+    let ct_len = res_or_ret!(kem::get_ciphertext_len(&mechanism));
 
-    let mut ciphertext_len = unsafe { *pul_ciphertextlen };
+    let ciphertext_len = unsafe { *pul_ciphertextlen };
 
     if p_ciphertext.is_null() || ciphertext_len < ct_len {
-        #[cfg(not(debug_assertions))] // code compiled only in release builds
-        {
-            todo!("warning: value assigned to `ciphertext_len` is never read");
-            ciphertext_len = ct_len;
+        unsafe {
+            *pul_ciphertextlen = ct_len;
         }
+
         return CKR_KEY_SIZE_RANGE;
     }
 
@@ -41,15 +40,7 @@ extern "C" fn fn_encapsulate(
         .get_object_by_handle(h_public_key)
         .expect("Cannot retrieve private key from handle");
 
-    let e =
-        kem::mlkem::encapsulate(&public_key, p_ciphertext, &mut ciphertext_len);
-
-    // this is fishy!
-    if e != CKR_OK {
-        return CKR_GENERAL_ERROR;
-    }
-
-    CKR_OK
+    res_or_ret!(kem::encapsulate(&mechanism, &public_key, p_ciphertext, pul_ciphertextlen))
 }
 
 extern "C" fn fn_decapsulate(
@@ -70,9 +61,8 @@ extern "C" fn fn_decapsulate(
         return CKR_ARGUMENTS_BAD;
     }
 
-    res_or_ret!(kem::validate_mechanism(p_mechanism));
-
-    let ct_len = kem::get_ciphertext_len(p_mechanism);
+    let mechanism = res_or_ret!(kem::validate_mechanism(p_mechanism));
+    let ct_len = res_or_ret!(kem::get_ciphertext_len(&mechanism));
     if ul_ciphertext_len < ct_len {
         return CKR_ARGUMENTS_BAD;
     }
@@ -89,21 +79,7 @@ extern "C" fn fn_decapsulate(
         .get_object_by_handle(h_private_key)
         .expect("Cannot retrieve private key from handle");
 
-    let e = kem::mlkem::decapsulate(
-        &private_key,
-        p_ciphertext,
-        ul_ciphertext_len,
-        p_template,
-        ul_attribute_count,
-        p_h_key,
-        &mut token,
-    );
-
-    // this is fishy!
-    if e != CKR_OK {
-        return CKR_GENERAL_ERROR;
-    }
-    CKR_OK
+    res_or_ret!(kem::decapsulate(&mechanism, &private_key, p_ciphertext, ul_ciphertext_len, p_template, ul_attribute_count, p_h_key, &mut token))
 }
 
 static FNLIST_KEM: CK_NSS_KEM_FUNCTIONS = CK_NSS_KEM_FUNCTIONS {

@@ -3,8 +3,10 @@
 use crate::err_rv;
 use crate::error::KResult;
 use crate::interface::*;
+use crate::object::Object;
 
 use crate::log::*;
+use crate::token::Token;
 
 pub mod mlkem;
 
@@ -38,25 +40,58 @@ pub fn validate_mechanism(
     // }
 }
 
-pub fn get_ciphertext_len(p_mechanism: CK_MECHANISM_PTR) -> CK_ULONG {
-    let mechanism = match validate_mechanism(p_mechanism) {
-        Ok(m) => m,
-        Err(e) => {
-            error!("Mechanism validation failed with {e:?}");
-            return 0;
-        }
-    };
+pub fn get_ciphertext_len(mechanism: &CK_MECHANISM) -> KResult<CK_ULONG> {
     match mechanism.mechanism {
-        CKM_NSS_ML_KEM => match mlkem::get_ciphertext_len(&mechanism) {
-            Ok(l) => l,
-            Err(e) => {
-                error!("Got {e:?}");
-                return 0;
-            }
-        },
+        CKM_NSS_ML_KEM => mlkem::get_ciphertext_len(&mechanism).map_err(|e| {
+            error!("Got {e:?}");
+            e
+        }),
         _ => {
             error!("Unknown mechanism ({:0X?})", mechanism.mechanism);
-            return 0;
+            return err_rv!(CKR_MECHANISM_INVALID);
+        }
+    }
+}
+
+pub fn encapsulate(
+    mechanism: &CK_MECHANISM,
+    public_key: &Object,
+    data: CK_BYTE_PTR,
+    data_len: CK_ULONG_PTR,
+) -> KResult<CK_RV> {
+    match mechanism.mechanism {
+        CKM_NSS_ML_KEM => mlkem::encapsulate(public_key, data, data_len),
+        other => {
+            error!("Unknown mechanism: {other:0X?}");
+            err_rv!(CKR_MECHANISM_INVALID)
+        }
+    }
+}
+
+pub fn decapsulate(
+    mechanism: &CK_MECHANISM,
+    private_key: &Object,
+    p_data: CK_BYTE_PTR,
+    data_len: CK_ULONG,
+    p_template: CK_ATTRIBUTE_PTR,
+    ul_attribute_count: CK_ULONG,
+    p_h_key: CK_OBJECT_HANDLE_PTR,
+    token: &mut Token,
+) -> KResult<CK_RV> {
+    match mechanism.mechanism {
+        CKM_NSS_ML_KEM => mlkem::decapsulate(
+            private_key,
+            p_data,
+            data_len,
+            p_template,
+            ul_attribute_count,
+            p_h_key,
+            token,
+        ),
+
+        other => {
+            error!("Unknown mechanism: {other:0X?}");
+            err_rv!(CKR_MECHANISM_INVALID)
         }
     }
 }

@@ -51,12 +51,11 @@ pub fn validate_params(params: CK_NSS_KEM_PARAMETER_SET_TYPE) -> KResult<()> {
     }
 }
 
-//#[cfg(any())]
 pub fn encapsulate(
     public_key: &Object,
     data: CK_BYTE_PTR,
     data_len: CK_ULONG_PTR,
-) -> CK_RV {
+) -> KResult<CK_RV> {
     let public_key_info = public_key
         .get_attr_as_bytes(CKA_PUBLIC_KEY_INFO)
         .expect("Failed to get public key info");
@@ -74,30 +73,30 @@ pub fn encapsulate(
 
     if data.is_null() {
         unsafe { *data_len = ct_bytes.len() as CK_ULONG };
-        return CKR_OK;
+        return Ok(CKR_OK);
     }
 
     if unsafe { *data_len as usize } < ct_bytes.len() {
         unsafe { *data_len = ct_bytes.len() as CK_ULONG };
-        return CKR_BUFFER_TOO_SMALL;
+        return err_rv!(CKR_BUFFER_TOO_SMALL);
     }
 
     unsafe {
         std::ptr::copy_nonoverlapping(ct_bytes.as_ptr(), data, ct_bytes.len())
     };
 
-    CKR_OK
+    Ok(CKR_OK)
 }
 
 pub fn decapsulate(
     private_key: &Object,
-    data: CK_BYTE_PTR,
+    p_data: CK_BYTE_PTR,
     data_len: CK_ULONG,
-    template: CK_ATTRIBUTE_PTR,
-    attribute_count: CK_ULONG,
-    _key: CK_OBJECT_HANDLE_PTR,
+    p_template: CK_ATTRIBUTE_PTR,
+    ul_attribute_count: CK_ULONG,
+    _p_h_key: CK_OBJECT_HANDLE_PTR,
     token: &mut Token,
-) -> CK_RV {
+) -> KResult<CK_RV> {
     let sk_bytes = private_key
         .get_attr_as_bytes(CKA_VALUE)
         .expect("Failed to get private key value");
@@ -105,7 +104,7 @@ pub fn decapsulate(
         .expect("Failed to decode private key");
 
     let ciphertext_slice =
-        unsafe { std::slice::from_raw_parts(data, data_len as usize) };
+        unsafe { std::slice::from_raw_parts(p_data, data_len as usize) };
     let ct = Ct::decode(Algorithm::MlKem768, ciphertext_slice)
         .expect("Failed to decode ciphertext");
 
@@ -114,7 +113,7 @@ pub fn decapsulate(
         .expect("Failed to decapsulate key");
 
     let template_slice: &[CK_ATTRIBUTE] = unsafe {
-        std::slice::from_raw_parts(template, attribute_count as usize)
+        std::slice::from_raw_parts(p_template, ul_attribute_count as usize)
     };
 
     let mut key_object = token
@@ -125,7 +124,9 @@ pub fn decapsulate(
         .set_attr(from_bytes(CKA_VALUE, ss.encode()))
         .expect("Failed to set attribute");
 
-    CKR_OK
+    // todo(Nouman): use p_h_key ?
+
+    Ok(CKR_OK)
 }
 
 pub fn get_ciphertext_len(mechanism: &CK_MECHANISM) -> KResult<CK_ULONG> {
