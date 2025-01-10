@@ -3,24 +3,48 @@
 use crate::attribute::from_bytes;
 use crate::error::CkRvError;
 use crate::interface::*;
+use crate::log::*;
 use crate::object::Object;
 use crate::token::Token;
+use crate::{err_rv, to_rv};
 use crate::{KError, KResult};
 use libcrux::kem::{Algorithm, Ct, PrivateKey, PublicKey};
 use rand::rngs::OsRng;
 
+const MLKEM768_CIPHERTEXT_BYTES: u64 = 1088u64;
+
+pub fn validate_mechanism(mechanism: CK_MECHANISM) -> KResult<CK_MECHANISM> {
+    const EXPECTED_PARAM_LEN: CK_ULONG =
+        std::mem::size_of::<CK_NSS_KEM_PARAMETER_SET_TYPE>() as CK_ULONG;
+    if mechanism.ulParameterLen != EXPECTED_PARAM_LEN {
+        /*
+         * TODO(Nouman): is this the best error value for this case? (i.e., document why)
+         */
+        error!(
+            "Unexpected params len: expected {:?}, got {:?}",
+            EXPECTED_PARAM_LEN, mechanism.ulParameterLen
+        );
+        return err_rv!(CKR_MECHANISM_INVALID);
+    }
+    let param = match mechanism.pParameter.is_null() {
+        true => {
+            error!("mechanism.pParameter was NULL");
+            return err_rv!(CKR_MECHANISM_PARAM_INVALID);
+        }
+        false => {
+            let p_parameter_set =
+                mechanism.pParameter as *const CK_NSS_KEM_PARAMETER_SET_TYPE;
+            unsafe { *p_parameter_set }
+        }
+    };
+    validate_params(param)
+        .map_err(|_| to_rv!(CKR_MECHANISM_PARAM_INVALID))
+        .and_then(|_| Ok(mechanism))
+}
+
 pub fn validate_params(params: CK_NSS_KEM_PARAMETER_SET_TYPE) -> KResult<()> {
     match params {
         CKP_NSS_ML_KEM_768 => Ok(()),
-        /*
-         * TODO(Nouman): what is the rationale behind returning different errors
-         *               for 0 or other unhandled values?
-         *               I am not saying it is wrong, but if there is a reason
-         *               we should at least document it in a comment
-         */
-        0 => Err(KError::RvError(CkRvError {
-            rv: CKR_MECHANISM_INVALID,
-        })),
         _ => Err(KError::RvError(CkRvError {
             rv: CKR_MECHANISM_PARAM_INVALID,
         })),
@@ -102,4 +126,17 @@ pub fn decapsulate(
         .expect("Failed to set attribute");
 
     CKR_OK
+}
+
+pub fn get_ciphertext_len(mechanism: &CK_MECHANISM) -> KResult<CK_ULONG> {
+    // mechanism should have already been validated (including params)
+    assert_ne!(mechanism.pParameter.is_null(), true);
+    let parameter_set = unsafe {
+        *(mechanism.pParameter as *const CK_NSS_KEM_PARAMETER_SET_TYPE)
+    };
+
+    match parameter_set {
+        CKP_NSS_ML_KEM_768 => Ok(MLKEM768_CIPHERTEXT_BYTES),
+        _ => err_rv!(CKR_MECHANISM_PARAM_INVALID),
+    }
 }

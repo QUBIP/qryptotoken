@@ -1,12 +1,12 @@
+// Copyright (C) 2023-2025 Tampere University
+// See LICENSE.txt file for terms
+use crate::err_rv;
 use crate::error::KResult;
 use crate::interface::*;
-use crate::{err_rv, to_rv};
 
 use crate::log::*;
 
 pub mod mlkem;
-
-const MLKEM768_CIPHERTEXT_BYTES: u64 = 1088u64;
 
 pub fn validate_mechanism(
     p_mechanism: CK_MECHANISM_PTR,
@@ -17,27 +17,8 @@ pub fn validate_mechanism(
     }
 
     let mechanism = unsafe { *p_mechanism };
-    let param = unsafe { *(mechanism.pParameter as *const CK_ULONG) };
     match mechanism.mechanism {
-        CKM_NSS_ML_KEM => {
-            const EXPECTED_PARAM_LEN: CK_ULONG = std::mem::size_of::<
-                CK_NSS_KEM_PARAMETER_SET_TYPE,
-            >() as CK_ULONG;
-            if mechanism.ulParameterLen != EXPECTED_PARAM_LEN {
-                /*
-                 * TODO(Nouman): is this the best error value for this case? (i.e., document why)
-                 */
-                error!(
-                    "Unexpected params len: expected {:?}, got {:?}",
-                    EXPECTED_PARAM_LEN, mechanism.ulParameterLen
-                );
-                return err_rv!(CKR_MECHANISM_INVALID);
-            }
-            mlkem::validate_params(param)
-                .map_err(|_| to_rv!(CKR_MECHANISM_PARAM_INVALID))
-                .and_then(|_| Ok(mechanism))
-        }
-
+        CKM_NSS_ML_KEM => mlkem::validate_mechanism(mechanism),
         _ => {
             error!("Unknown mechanism ({:0X?})", mechanism.mechanism);
             return err_rv!(CKR_MECHANISM_INVALID);
@@ -65,23 +46,17 @@ pub fn get_ciphertext_len(p_mechanism: CK_MECHANISM_PTR) -> CK_ULONG {
             return 0;
         }
     };
-
-    let parameter_set = match mechanism.pParameter.is_null() {
-        true => {
-            error!("mechanism.pParameter was NULL");
+    match mechanism.mechanism {
+        CKM_NSS_ML_KEM => match mlkem::get_ciphertext_len(&mechanism) {
+            Ok(l) => l,
+            Err(e) => {
+                error!("Got {e:?}");
+                return 0;
+            }
+        },
+        _ => {
+            error!("Unknown mechanism ({:0X?})", mechanism.mechanism);
             return 0;
         }
-        false => {
-            let p_parameter_set =
-                mechanism.pParameter as *const CK_NSS_KEM_PARAMETER_SET_TYPE;
-            unsafe { *p_parameter_set }
-        }
-    };
-
-    match parameter_set {
-        CKP_NSS_ML_KEM_768 => {
-            return MLKEM768_CIPHERTEXT_BYTES.into();
-        }
-        _ => return 0,
     }
 }
