@@ -2596,6 +2596,25 @@ unsafe impl Sync for CK_INTERFACE {}
 unsafe impl Sync for InterfaceData {}
 
 #[cfg(feature = "fips")]
+static INTERFACE_SET: [InterfaceData; 4] = [
+    InterfaceData {
+        interface: std::ptr::addr_of!(INTERFACE_300),
+        version: FNLIST_300.version,
+    },
+    InterfaceData {
+        interface: std::ptr::addr_of!(INTERFACE_240),
+        version: FNLIST_240.version,
+    },
+    InterfaceData {
+        interface: std::ptr::addr_of!(INTERFACE_NSS_KEM),
+        version: FNLIST_KEM.version,
+    },
+    InterfaceData {
+        interface: std::ptr::addr_of!(INTERFACE_VAL),
+        version: FNLIST_VAL.version,
+    },
+];
+#[cfg(not(feature = "fips"))]
 static INTERFACE_SET: [InterfaceData; 3] = [
     InterfaceData {
         interface: std::ptr::addr_of!(INTERFACE_300),
@@ -2606,19 +2625,8 @@ static INTERFACE_SET: [InterfaceData; 3] = [
         version: FNLIST_240.version,
     },
     InterfaceData {
-        interface: std::ptr::addr_of!(INTERFACE_VAL),
-        version: FNLIST_VAL.version,
-    },
-];
-#[cfg(not(feature = "fips"))]
-static INTERFACE_SET: [InterfaceData; 2] = [
-    InterfaceData {
-        interface: std::ptr::addr_of!(INTERFACE_300),
-        version: FNLIST_300.version,
-    },
-    InterfaceData {
-        interface: std::ptr::addr_of!(INTERFACE_240),
-        version: FNLIST_240.version,
+        interface: std::ptr::addr_of!(INTERFACE_NSS_KEM),
+        version: FNLIST_KEM.version,
     },
 ];
 

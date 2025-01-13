@@ -88,7 +88,7 @@ static FNLIST_KEM: CK_NSS_KEM_FUNCTIONS = CK_NSS_KEM_FUNCTIONS {
     C_Decapsulate: Some(fn_decapsulate),
 };
 
-pub static INTERFACE_NSS: CK_INTERFACE = CK_INTERFACE {
+pub static INTERFACE_NSS_KEM: CK_INTERFACE = CK_INTERFACE {
     pInterfaceName: c"Vendor NSS KEM Interface".as_ptr() as *const u8,
     pFunctionList: &FNLIST_KEM as *const CK_NSS_KEM_FUNCTIONS
         as *const ::std::os::raw::c_void,
