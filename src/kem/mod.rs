@@ -6,7 +6,6 @@ use crate::interface::*;
 use crate::object::Object;
 
 use crate::log::*;
-use crate::token::Token;
 
 pub mod mlkem;
 
@@ -70,23 +69,16 @@ pub fn encapsulate(
 
 pub fn decapsulate(
     mechanism: &CK_MECHANISM,
-    private_key: &Object,
-    p_data: CK_BYTE_PTR,
-    data_len: CK_ULONG,
-    p_template: CK_ATTRIBUTE_PTR,
-    ul_attribute_count: CK_ULONG,
-    p_h_key: CK_OBJECT_HANDLE_PTR,
-    token: &mut Token,
+    private_key_obj: &Object,
+    ct: &[u8],
+    shared_secret_obj: /* out */ &mut Object,
 ) -> KResult<CK_RV> {
     match mechanism.mechanism {
         CKM_NSS_ML_KEM => mlkem::decapsulate(
-            private_key,
-            p_data,
-            data_len,
-            p_template,
-            ul_attribute_count,
-            p_h_key,
-            token,
+            mechanism,
+            private_key_obj,
+            ct,
+            shared_secret_obj,
         ),
 
         other => {

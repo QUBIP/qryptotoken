@@ -5,13 +5,13 @@ use crate::error::CkRvError;
 use crate::interface::*;
 use crate::log::*;
 use crate::object::Object;
-use crate::token::Token;
 use crate::{err_rv, to_rv};
 use crate::{KError, KResult};
 use libcrux::kem::{Algorithm, Ct, PrivateKey, PublicKey};
 use rand::rngs::OsRng;
 
-const MLKEM768_CIPHERTEXT_BYTES: u64 = 1088u64;
+const MLKEM768_CIPHERTEXT_BYTES: u64 = 1088;
+const MLKEM768_SHAREDSECRET_BYTES: u64 = 32;
 
 pub fn validate_mechanism(mechanism: CK_MECHANISM) -> KResult<CK_MECHANISM> {
     const EXPECTED_PARAM_LEN: CK_ULONG =
@@ -89,42 +89,53 @@ pub fn encapsulate(
 }
 
 pub fn decapsulate(
-    private_key: &Object,
-    p_data: CK_BYTE_PTR,
-    data_len: CK_ULONG,
-    p_template: CK_ATTRIBUTE_PTR,
-    ul_attribute_count: CK_ULONG,
-    _p_h_key: CK_OBJECT_HANDLE_PTR,
-    token: &mut Token,
+    _mechanism: &CK_MECHANISM,
+    private_key_obj: &Object,
+    ct: &[u8],
+    shared_secret_obj: /* out */ &mut Object,
 ) -> KResult<CK_RV> {
-    let sk_bytes = private_key
-        .get_attr_as_bytes(CKA_VALUE)
-        .expect("Failed to get private key value");
-    let private_key = PrivateKey::decode(Algorithm::MlKem768, &sk_bytes)
-        .expect("Failed to decode private key");
+    /* Later we can check on _mechanism to select the right param set, for now we only support MLKEM768 */
+    const PARAM_SET: Algorithm = Algorithm::MlKem768;
+    const EXPECTED_SS_LEN: usize = MLKEM768_SHAREDSECRET_BYTES as usize;
 
-    let ciphertext_slice =
-        unsafe { std::slice::from_raw_parts(p_data, data_len as usize) };
-    let ct = Ct::decode(Algorithm::MlKem768, ciphertext_slice)
-        .expect("Failed to decode ciphertext");
+    let sk_bytes = private_key_obj
+        .get_attr_as_bytes(CKA_VALUE)
+        .map_err(|e| {
+            error!("Cannot retrieve raw private key value from handle: {e:?}");
+            to_rv!(CKR_KEY_HANDLE_INVALID)
+        })?
+        .as_slice();
+    let sk = PrivateKey::decode(PARAM_SET, &sk_bytes).map_err(|e| {
+        error!("Failed to decode the secret key: {e:?}");
+        to_rv!(CKR_DATA_INVALID)
+    })?;
+
+    let ct = Ct::decode(PARAM_SET, ct).map_err(|e| {
+        error!("Failed to decode ciphertext: {e:?}");
+        to_rv!(CKR_ARGUMENTS_BAD)
+    })?;
 
     let ss = ct
-        .decapsulate(&private_key)
-        .expect("Failed to decapsulate key");
+        .decapsulate(&sk)
+        .map_err(|e| {
+            error!("Failed to decapsulate key: {e:?}");
+            // TODO: We might need to return either CKR_ARGUMENTS_BAD or
+            // CKR_FUNCTION_FAILED discriminating on the runtime value of `e`
+            to_rv!(CKR_FUNCTION_FAILED)
+        })?
+        .encode();
 
-    let template_slice: &[CK_ATTRIBUTE] = unsafe {
-        std::slice::from_raw_parts(p_template, ul_attribute_count as usize)
-    };
+    if ss.len() != EXPECTED_SS_LEN {
+        error! {"Unexpected size for the decapsulated shared secret. Got {}, expected {EXPECTED_SS_LEN:}.", ss.len() };
+        return err_rv!(CKR_ENCRYPTED_DATA_INVALID);
+    }
 
-    let mut key_object = token
-        .get_object_factories()
-        .create(template_slice)
-        .expect("Failed to create object");
-    key_object
-        .set_attr(from_bytes(CKA_VALUE, ss.encode()))
-        .expect("Failed to set attribute");
-
-    // todo(Nouman): use p_h_key ?
+    shared_secret_obj
+        .set_attr(from_bytes(CKA_VALUE, ss))
+        .map_err(|e| {
+            error!("Failed to set shared secret CKA_VALUE attribute: {e:?}");
+            e
+        })?;
 
     Ok(CKR_OK)
 }
