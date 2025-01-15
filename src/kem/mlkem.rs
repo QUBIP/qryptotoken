@@ -52,38 +52,64 @@ pub fn validate_params(params: CK_NSS_KEM_PARAMETER_SET_TYPE) -> KResult<()> {
 }
 
 pub fn encapsulate(
-    public_key: &Object,
-    data: CK_BYTE_PTR,
-    data_len: CK_ULONG_PTR,
+    _mechanism: &CK_MECHANISM,
+    public_key_obj: &Object,
+    ciphertext: /* out */ &mut [u8],
+    shared_secret_obj: /* out */ &mut Object,
 ) -> KResult<CK_RV> {
-    let public_key_info = public_key
-        .get_attr_as_bytes(CKA_PUBLIC_KEY_INFO)
-        .expect("Failed to get public key info");
+    /* Later we can check on _mechanism to select the right param set, for now we only support MLKEM768 */
+    const PARAM_SET: Algorithm = Algorithm::MlKem768;
+    const EXPECTED_SS_LEN: usize = MLKEM768_SHAREDSECRET_BYTES as usize;
 
-    let public_key = PublicKey::decode(Algorithm::MlKem768, &public_key_info)
-        .expect("Failed to decode public key");
+    let pk_bytes = public_key_obj
+        .get_attr_as_bytes(CKA_VALUE)
+        .map_err(|e| {
+            error!("Cannot retrieve raw public key value from handle: {e:?}");
+            to_rv!(CKR_KEY_HANDLE_INVALID)
+        })?
+        .as_slice();
+
+    let pk = PublicKey::decode(PARAM_SET, pk_bytes).map_err(|e| {
+        error!("Failed to decode the secret key: {e:?}");
+        to_rv!(CKR_DATA_INVALID)
+    })?;
 
     let mut rng = OsRng;
 
-    let (_ss, ct) = public_key
-        .encapsulate(&mut rng)
-        .expect("Failed to encapsulate key");
+    let (ss, ct) = pk.encapsulate(&mut rng).map_err(|e| {
+        error!("Failed to decapsulate key: {e:?}");
+        // TODO: We might need to return either CKR_ARGUMENTS_BAD or
+        // CKR_FUNCTION_FAILED discriminating on the runtime value of `e`
+        to_rv!(CKR_FUNCTION_FAILED)
+    })?;
+
+    let ss = ss.encode();
+
+    if ss.len() != EXPECTED_SS_LEN {
+        error! {"Unexpected size for the encapsulated shared secret. Got {},
+        expected {EXPECTED_SS_LEN:}.", ss.len() };
+        return err_rv!(CKR_ENCRYPTED_DATA_INVALID);
+    }
+
+    shared_secret_obj
+        .set_attr(from_bytes(CKA_VALUE, ss))
+        .map_err(|e| {
+            error!("Failed to set shared secret CKA_VALUE attribute: {e:?}");
+            e
+        })?;
 
     let ct_bytes = ct.encode();
 
-    if data.is_null() {
-        unsafe { *data_len = ct_bytes.len() as CK_ULONG };
-        return Ok(CKR_OK);
-    }
-
-    if unsafe { *data_len as usize } < ct_bytes.len() {
-        unsafe { *data_len = ct_bytes.len() as CK_ULONG };
+    if ct_bytes.len() != ciphertext.len() {
+        error!(
+            "unexpected ciphertext length: expected {}, got {}",
+            ciphertext.len(),
+            ct_bytes.len()
+        );
         return err_rv!(CKR_BUFFER_TOO_SMALL);
     }
 
-    unsafe {
-        std::ptr::copy_nonoverlapping(ct_bytes.as_ptr(), data, ct_bytes.len())
-    };
+    ciphertext.clone_from_slice(&ct_bytes);
 
     Ok(CKR_OK)
 }
