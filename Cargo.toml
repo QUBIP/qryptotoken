@@ -45,6 +45,7 @@ uuid = { version = "1.4.1", features = ["v4"] }
 zeroize = "1.6.0"
 log = "0.4.22"
 libcrux-kem = "0.0.2-alpha.3"
+ml-dsa = "0.1.0-pre.2"
 
 
 [features]

@@ -93,6 +93,9 @@ mod drbg;
 #[cfg(feature = "pure-rust")]
 mod mlkem;
 
+#[cfg(feature = "pure-rust")]
+mod mldsa;
+
 /* Helper code */
 mod kasn1;
 mod misc;

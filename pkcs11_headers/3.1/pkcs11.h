@@ -2408,5 +2408,6 @@ struct CK_FUNCTION_LIST {
 };
 
 #include "../nss_vendor_extension.h"
+#include "../nisec_vendor_extension.h"
 
 #endif
