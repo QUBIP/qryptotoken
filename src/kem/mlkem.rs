@@ -7,7 +7,7 @@ use crate::log::*;
 use crate::object::Object;
 use crate::{err_rv, to_rv};
 use crate::{KError, KResult};
-use libcrux::kem::{Algorithm, Ct, PrivateKey, PublicKey};
+use libcrux_kem::{Algorithm, Ct, PrivateKey, PublicKey};
 use rand::rngs::OsRng;
 
 const MLKEM768_CIPHERTEXT_BYTES: u64 = 1088;

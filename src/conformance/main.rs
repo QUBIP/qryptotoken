@@ -1,4 +1,4 @@
-use libcrux::kem::*;
+use libcrux_kem::*;
 
 fn main() {
     println!("Testing libcrux ml-kem");

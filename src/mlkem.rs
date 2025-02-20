@@ -1,4 +1,6 @@
-use libcrux::kem::*;
+// Copyright (C) 2023-2025 Tampere University
+// See LICENSE.txt file for terms
+use libcrux_kem::*;
 use rand::rngs::OsRng;
 
 use crate::attribute::from_bytes;
