@@ -7,11 +7,6 @@ edition = "2021"
 name = "kryoptic_pkcs11"
 crate-type = ["cdylib"]
 
-[[bin]]
-name = "conformance"
-path = "src/conformance/main.rs"
-test = false
-
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [build-dependencies]
@@ -46,6 +41,7 @@ zeroize = "1.6.0"
 log = "0.4.22"
 libcrux-kem = "0.0.2-alpha.3"
 ml-dsa = "0.1.0-pre.2"
+drbg = "1.0.0"
 
 
 [features]
