@@ -1,7 +1,6 @@
 // Copyright (C) 2023-2025 Tampere University
 // See LICENSE.txt file for terms
 use libcrux_kem::*;
-use rand::rngs::OsRng;
 
 use crate::attribute::from_bytes;
 use crate::error::*;
@@ -118,7 +117,7 @@ impl Mechanism for MlKemMechanism {
         let public_key = PublicKey::decode(Algorithm::MlKem768, &pk_bytes)
             .expect("Failed to decode public key");
 
-        let mut rng = OsRng;
+        let mut rng = crate::rng::RNG::new().expect("RNG instantiation failed");
         let (_ss, ct) = public_key
             .encapsulate(&mut rng)
             .expect("Failed to encapsulate key");
@@ -173,7 +172,7 @@ impl Mechanism for MlKemMechanism {
         pubkey_template: &[CK_ATTRIBUTE],
         prikey_template: &[CK_ATTRIBUTE],
     ) -> KResult<(Object, Object)> {
-        let mut rng = OsRng;
+        let mut rng = crate::rng::RNG::new().expect("RNG instantiation failed");
         let (sk, pk) = key_gen(Algorithm::MlKem768, &mut rng)
             .expect("Key generation failed");
 
@@ -190,17 +189,17 @@ impl Mechanism for MlKemMechanism {
 }
 
 pub fn register(mechs: &mut Mechanisms, ot: &mut ObjectFactories) {
-    mechs.add_mechanism(
-        CKM_ML_KEM,
-        Box::new(MlKemMechanism {
-            info: CK_MECHANISM_INFO {
-                ulMinKeySize: 0,
-                ulMaxKeySize: 0,
-                flags: CKF_WRAP | CKF_UNWRAP,
-            },
-        }),
-    );
-
+    /* mechs.add_mechanism(
+            CKM_ML_KEM,
+            Box::new(MlKemMechanism {
+                info: CK_MECHANISM_INFO {
+                    ulMinKeySize: 0,
+                    ulMaxKeySize: 0,
+                    flags: CKF_WRAP | CKF_UNWRAP,
+                },
+            }),
+        );
+    */
     mechs.add_mechanism(
         CKM_ML_KEM_KEYGEN,
         Box::new(MlKemMechanism {

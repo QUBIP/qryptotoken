@@ -8,7 +8,6 @@ use crate::object::Object;
 use crate::{err_rv, to_rv};
 use crate::{KError, KResult};
 use libcrux_kem::{Algorithm, Ct, PrivateKey, PublicKey};
-use rand::rngs::OsRng;
 
 const MLKEM768_CIPHERTEXT_BYTES: u64 = 1088;
 const MLKEM768_SHAREDSECRET_BYTES: u64 = 32;
@@ -74,7 +73,7 @@ pub fn encapsulate(
         to_rv!(CKR_DATA_INVALID)
     })?;
 
-    let mut rng = OsRng;
+    let mut rng = crate::rng::RNG::new().expect("RNG instantiation failed");
 
     let (ss, ct) = pk.encapsulate(&mut rng).map_err(|e| {
         error!("Failed to decapsulate key: {e:?}");
