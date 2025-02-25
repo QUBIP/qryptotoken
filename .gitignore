@@ -1,5 +1,4 @@
 /target
-/Cargo.lock
 /src/pkcs11/bindings.rs
 /src/ossl/bindings.rs
 /src/fips/bindings.rs
@@ -12,4 +11,3 @@
 /*.sql
 cscope.*
 tags
-libcrux/Cargo.lock

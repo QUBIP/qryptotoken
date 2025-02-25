@@ -40,8 +40,11 @@ sha2 = "0.10.8"
 uuid = { version = "1.4.1", features = ["v4"] }
 zeroize = "1.6.0"
 log = "0.4.22"
-libcrux-kem = "0.0.2-alpha.3"
-ml-dsa = "0.1.0-pre.2"
+ml-dsa = "=0.1.0-pre.2"
+const-oid = "=0.10.0-rc.3"
+libcrux-kem = "=0.0.2-alpha.3"
+libcrux-ecdh = "=0.0.2-alpha.3"
+libcrux-ml-kem = "=0.0.2-alpha.3"
 
 
 [features]
