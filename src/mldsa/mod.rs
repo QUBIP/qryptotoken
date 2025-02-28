@@ -1,3 +1,5 @@
+// Copyright (C) 2023-2025 Tampere University
+// See LICENSE.txt file for terms
 use crate::attribute::{from_bool, from_bytes, from_ulong};
 use crate::error::*;
 use crate::interface::*;
@@ -10,6 +12,9 @@ use ml_dsa::*;
 
 use once_cell::sync::Lazy;
 use std::fmt::Debug;
+
+#[cfg(test)]
+mod tests;
 
 #[derive(Debug)]
 struct PubKey(VerifyingKey<MlDsa65>);
@@ -353,8 +358,6 @@ impl Sign for MLDSAOperation {
         // self.sign_final(signature)
         self.finalized = true;
 
-        let signlen = signature.len();
-
         let private_key = match self.private_key.as_ref() {
             Some(key) => &key.0,
             None => return err_rv!(CKR_KEY_HANDLE_INVALID),
@@ -366,12 +369,15 @@ impl Sign for MLDSAOperation {
             Err(_) => return err_rv!(CKR_FUNCTION_FAILED),
         };
 
-        let encoded_signature = signed_data.encode().to_vec();
+        let encoded_signature = signed_data.encode();
+        let encoded_signature = encoded_signature.as_slice();
 
+        let signlen = signature.len();
         if encoded_signature.len() != signlen {
             // TODO: check if this is the right error
             return err_rv!(CKR_BUFFER_TOO_SMALL);
         }
+        signature.copy_from_slice(&encoded_signature);
 
         Ok(())
     }
@@ -492,6 +498,7 @@ impl Verify for MLDSAOperation {
         Ok(self.output_len)
     }
 }
+
 fn make_output_length_from_obj(key: &Object) -> KResult<usize> {
     let bytes = match key.get_attr_as_bytes(CKA_VALUE) {
         Ok(val) => val,
@@ -514,11 +521,26 @@ impl std::convert::TryFrom<&Object> for PubKey {
             Ok(val) => val,
             Err(_) => return err_rv!(CKR_GENERAL_ERROR),
         };
-        let encoded_key: EncodedVerifyingKey<MlDsa65> =
-            match EncodedVerifyingKey::<MlDsa65>::try_from(pk_bytes.as_slice())
-            {
+        Self::try_from(pk_bytes.as_slice())
+    }
+}
+
+impl std::convert::TryFrom<&[u8]> for PubKey {
+    type Error = KError;
+
+    fn try_from(pk_bytes: &[u8]) -> KResult<Self> {
+        let encoded_key =
+            match EncodedVerifyingKey::<MlDsa65>::try_from(pk_bytes) {
                 Ok(encoded) => encoded,
-                Err(_) => return err_rv!(CKR_GENERAL_ERROR),
+                Err(e) => {
+                    #[cfg(test)]
+                    {
+                        log::debug!("Error: {e:?}");
+                    }
+
+                    let _ = e;
+                    return err_rv!(CKR_GENERAL_ERROR);
+                }
             };
 
         let pk = VerifyingKey::<MlDsa65>::decode(&encoded_key);
@@ -536,11 +558,27 @@ impl std::convert::TryFrom<&Object> for PrivKey {
             Err(_) => return err_rv!(CKR_GENERAL_ERROR),
         };
 
-        let encoded_key =
-            match EncodedSigningKey::<MlDsa65>::try_from(sk_bytes.as_slice()) {
-                Ok(encoded) => encoded,
-                Err(_) => return err_rv!(CKR_GENERAL_ERROR),
-            };
+        Self::try_from(sk_bytes.as_slice())
+    }
+}
+
+impl std::convert::TryFrom<&[u8]> for PrivKey {
+    type Error = KError;
+
+    fn try_from(sk_bytes: &[u8]) -> KResult<Self> {
+        let encoded_key = match EncodedSigningKey::<MlDsa65>::try_from(sk_bytes)
+        {
+            Ok(encoded) => encoded,
+            Err(e) => {
+                #[cfg(test)]
+                {
+                    log::debug!("Error: {e:?}");
+                }
+
+                let _ = e;
+                return err_rv!(CKR_GENERAL_ERROR);
+            }
+        };
 
         let sk = SigningKey::<MlDsa65>::decode(&encoded_key);
 
