@@ -342,21 +342,42 @@ impl Sign for MLDSAOperation {
     fn sign(&mut self, data: &[u8], signature: &mut [u8]) -> KResult<()> {
         if self.in_use {
             return err_rv!(CKR_OPERATION_NOT_INITIALIZED);
-        } else if self.finalized {
+        }
+
+        if self.finalized {
             return err_rv!(CKR_OPERATION_NOT_INITIALIZED);
         }
-        // self.sign_update(data)?;
-        else if !self.in_use {
+        self.sign_update(data)?;
+        self.sign_final(signature)
+    }
+
+    fn sign_update(&mut self, data: &[u8]) -> KResult<()> {
+        if self.finalized {
+            return err_rv!(CKR_OPERATION_NOT_INITIALIZED);
+        }
+
+        if !self.in_use {
             self.in_use = true;
 
             if self.private_key.is_none() {
                 return err_rv!(CKR_KEY_HANDLE_INVALID);
             }
         }
-        self.data.extend_from_slice(data);
 
-        // self.sign_final(signature)
+        self.data.extend_from_slice(data);
+        Ok(())
+    }
+
+    fn sign_final(&mut self, signature: &mut [u8]) -> KResult<()> {
+        if !self.in_use {
+            return err_rv!(CKR_OPERATION_NOT_INITIALIZED);
+        }
+        if self.finalized {
+            return err_rv!(CKR_OPERATION_NOT_INITIALIZED);
+        }
         self.finalized = true;
+
+        let signlen = signature.len();
 
         let private_key = match self.private_key.as_ref() {
             Some(key) => &key.0,
@@ -369,69 +390,13 @@ impl Sign for MLDSAOperation {
             Err(_) => return err_rv!(CKR_FUNCTION_FAILED),
         };
 
-        let encoded_signature = signed_data.encode();
-        let encoded_signature = encoded_signature.as_slice();
+        let encoded_signature = signed_data.encode().to_vec();
 
-        let signlen = signature.len();
         if encoded_signature.len() != signlen {
-            // TODO: check if this is the right error
             return err_rv!(CKR_BUFFER_TOO_SMALL);
         }
         signature.copy_from_slice(&encoded_signature);
-
         Ok(())
-    }
-
-    fn sign_update(&mut self, data: &[u8]) -> KResult<()> {
-        // if self.finalized {
-        //     return err_rv!(CKR_OPERATION_NOT_INITIALIZED);
-        // }
-        let _ = data;
-        // if !self.in_use {
-        //     self.in_use = true;
-
-        //     if self.private_key.is_none() {
-        //         return err_rv!(CKR_KEY_HANDLE_INVALID);
-        //     }
-        // }
-
-        // self.data.extend_from_slice(data);
-        // Ok(())
-        todo!("Implement this function")
-    }
-
-    fn sign_final(&mut self, signature: &mut [u8]) -> KResult<()> {
-        let _ = signature;
-        // if !self.in_use {
-        //     return err_rv!(CKR_OPERATION_NOT_INITIALIZED);
-        // }
-        // // if self.finalized {
-        // //     return err_rv!(CKR_OPERATION_NOT_INITIALIZED);
-        // // }
-        // self.finalized = true;
-
-        // let signlen = signature.len();
-
-        // let private_key = match self.private_key.as_ref() {
-        //     Some(key) => &key.0,
-        //     None => return err_rv!(CKR_KEY_HANDLE_INVALID),
-        // };
-
-        // // Perform the signing operation
-        // let signed_data = match private_key.try_sign(&self.data) {
-        //     Ok(sig) => sig,
-        //     Err(_) => return err_rv!(CKR_FUNCTION_FAILED),
-        // };
-
-        // let encoded_signature = signed_data.encode().to_vec();
-
-        // if encoded_signature.len() != signlen {
-        //     // TODO: check if this is the right error
-        //     return err_rv!(CKR_BUFFER_TOO_SMALL);
-        // }
-
-        // Ok(())
-        todo!("Implement this function")
     }
 
     fn signature_len(&self) -> KResult<usize> {
