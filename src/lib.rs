@@ -431,9 +431,41 @@ fn find_conf() -> KResult<String> {
     }
 }
 
+pub const QRYOPTIC_TARGET: &'static str = "qubip";
+
+#[cfg(feature = "env_logger")]
+fn inner_try_init_logging() -> Result<(), String> {
+    env_logger::Builder::from_default_env()
+        //.filter_level(log::LevelFilter::Debug)
+        .format_timestamp(None)
+        .format_module_path(true)
+        .format_target(false)
+        .format_source_path(true)
+        .try_init()
+        .map_err(|e| e.to_string())
+}
+
+pub(crate) fn try_init_logging() -> Result<(), String> {
+    use std::sync::Once;
+
+    static INIT: Once = Once::new();
+
+    INIT.call_once(|| {
+        #[cfg(feature = "env_logger")]
+        inner_try_init_logging()
+            .expect("Failed to initialize the logging system");
+    });
+
+    Ok(())
+}
+
 extern "C" fn fn_initialize(_init_args: CK_VOID_PTR) -> CK_RV {
     let mut slotnum: CK_SLOT_ID = 0;
     let conf: String;
+
+    #[cfg(feature = "env_logger")]
+    try_init_logging().expect("Failed initializing logger subsystem");
+    debug!(target: crate::QRYOPTIC_TARGET, "🦀 Loaded");
 
     if _init_args.is_null() {
         conf = res_or_ret!(find_conf());
@@ -781,6 +813,7 @@ extern "C" fn fn_create_object(
     count: CK_ULONG,
     object_handle: CK_OBJECT_HANDLE_PTR,
 ) -> CK_RV {
+    trace!(target: crate::QRYOPTIC_TARGET, "🦀 fn_create_object called");
     let rstate = global_rlock!(STATE);
     let session = res_or_ret!(rstate.get_session(s_handle));
     let tmpl: &mut [CK_ATTRIBUTE] =
