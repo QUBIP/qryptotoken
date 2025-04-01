@@ -17,10 +17,10 @@ use std::fmt::Debug;
 mod tests;
 
 #[derive(Debug)]
-struct PubKey(VerifyingKey<MlDsa65>);
+struct PubKey(Box<VerifyingKey<MlDsa65>>);
 
 #[derive(Debug)]
-struct PrivKey(SigningKey<MlDsa65>);
+struct PrivKey(Box<SigningKey<MlDsa65>>);
 
 #[derive(Debug)]
 pub struct MlDsaPubFactory {
@@ -39,11 +39,19 @@ mod sizes {
 
 #[cfg(not(any()))]
 mod sizes {
+    #![allow(dead_code)]
     use super::*;
 
-    pub(crate) const MIN_ML_DSA_SIZE_BITS: CK_ULONG = 1952 /* ML-DSA-65 public key */;
-    pub(crate) const MAX_ML_DSA_SIZE_BITS: CK_ULONG = 4032 /* ML-DSA-65 private key */;
-    pub(crate) const ML_DSA_SIGNATURE_SIZE_BITS: CK_ULONG = 3309 /* ML-DSA-65 signature */;
+    pub(crate) const MLDSA65_PUBLIC_KEY_SIZE: usize = 1952;
+    pub(crate) const MLDSA65_PRIVATE_KEY_SIZE: usize = 4032;
+    pub(crate) const MLDSA65_SIGNATURE_SIZE: usize = 3309;
+
+    pub(crate) const MIN_ML_DSA_SIZE_BITS: CK_ULONG =
+        (MLDSA65_PUBLIC_KEY_SIZE as CK_ULONG) << 3;
+    pub(crate) const MAX_ML_DSA_SIZE_BITS: CK_ULONG =
+        (MLDSA65_PRIVATE_KEY_SIZE as CK_ULONG) << 3;
+    pub(crate) const ML_DSA_SIGNATURE_SIZE_BITS: CK_ULONG =
+        (MLDSA65_SIGNATURE_SIZE as CK_ULONG) << 3;
 }
 
 use sizes::*;
@@ -211,7 +219,7 @@ impl Mechanism for MlDsaMechanism {
 
     fn verify_new(
         &self,
-        _mech: &CK_MECHANISM,
+        mech: &CK_MECHANISM,
         key: &Object,
     ) -> KResult<Box<dyn Verify>> {
         crate::trace!(target: crate::QRYOPTIC_TARGET, "⭐️🦀 {}::verify_new() called", std::any::type_name::<Self>());
@@ -228,14 +236,7 @@ impl Mechanism for MlDsaMechanism {
             }
         }
 
-        let ret = Box::new(MLDSAOperation {
-            output_len: make_output_length_from_obj(key)?,
-            public_key: Some(PubKey::try_from(key)?),
-            private_key: None,
-            data: Vec::new(),
-            finalized: false,
-            in_use: false,
-        });
+        let ret = Box::new(MLDSAOperation::verify_new(mech, key, &self.info)?);
 
         crate::trace!(target: crate::QRYOPTIC_TARGET, "️🦀 {}::verify_new() DONE 👍", std::any::type_name::<Self>());
         return Ok(ret);
@@ -276,8 +277,8 @@ impl Mechanism for MlDsaMechanism {
             return err_rv!(CKR_TEMPLATE_INCONSISTENT);
         }
         let key_pair = MlDsa65::key_gen(&mut rng);
-        let pk = key_pair.verifying_key().clone();
-        let sk = key_pair.signing_key().clone();
+        let pk = Box::new(key_pair.verifying_key().clone());
+        let sk = Box::new(key_pair.signing_key().clone());
         let pk = PubKey(pk);
         let sk = PrivKey(sk);
 
@@ -340,6 +341,37 @@ struct MLDSAOperation {
     finalized: bool,
     data: Vec<u8>,
     in_use: bool,
+}
+impl MLDSAOperation {
+    pub fn verify_new(
+        _mech: &CK_MECHANISM,
+        key: &Object,
+        _info: &CK_MECHANISM_INFO,
+    ) -> KResult<Self> {
+        let output_len = match make_output_length_from_obj(key) {
+            Ok(l) => l,
+            Err(e) => {
+                crate::error!(target: crate::QRYOPTIC_TARGET, "️🦀 Error retrieving output length from object: {e:?}");
+                return Err(e);
+            }
+        };
+        let private_key: Option<PrivKey> = None;
+        let public_key = match PubKey::try_from(key) {
+            Ok(pk) => Some(pk),
+            Err(e) => {
+                crate::error!(target: crate::QRYOPTIC_TARGET, "️🦀 Error converting from object to PubKey: {e:?}");
+                return Err(e);
+            }
+        };
+        Ok(MLDSAOperation {
+            output_len,
+            public_key,
+            private_key,
+            finalized: false,
+            data: Vec::new(),
+            in_use: false,
+        })
+    }
 }
 
 impl MechOperation for MLDSAOperation {
@@ -481,7 +513,7 @@ fn make_output_length_from_obj(key: &Object) -> KResult<usize> {
     };
 
     let output_len = match bytes.len() {
-        3309 => ML_DSA_SIGNATURE_SIZE_BITS as usize,
+        MLDSA65_PUBLIC_KEY_SIZE => MLDSA65_SIGNATURE_SIZE as usize,
         _ => return err_rv!(CKR_GENERAL_ERROR),
     };
 
@@ -518,7 +550,7 @@ impl std::convert::TryFrom<&[u8]> for PubKey {
                 }
             };
 
-        let pk = VerifyingKey::<MlDsa65>::decode(&encoded_key);
+        let pk = Box::new(VerifyingKey::<MlDsa65>::decode(&encoded_key));
 
         Ok(PubKey(pk))
     }
@@ -555,7 +587,7 @@ impl std::convert::TryFrom<&[u8]> for PrivKey {
             }
         };
 
-        let sk = SigningKey::<MlDsa65>::decode(&encoded_key);
+        let sk = Box::new(SigningKey::<MlDsa65>::decode(&encoded_key));
 
         Ok(PrivKey(sk))
     }

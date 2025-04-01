@@ -537,9 +537,9 @@ fn test_signature_generation() {
         let expected_sig =
             hex::decode(td.expected_sig).expect("Failed to decode hexstring");
 
-        let mut buf = vec![0u8; ML_DSA_SIGNATURE_SIZE_BITS as usize];
+        let mut buf = vec![0u8; MLDSA65_SIGNATURE_SIZE as usize];
         let mut op = MLDSAOperation {
-            output_len: ML_DSA_SIGNATURE_SIZE_BITS as usize,
+            output_len: MLDSA65_SIGNATURE_SIZE as usize,
             public_key: None,
             private_key: Some(key),
             data: Vec::new(),
