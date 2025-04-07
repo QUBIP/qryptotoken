@@ -502,7 +502,7 @@ impl Verify for MLDSAOperation {
         self.finalized = true;
 
         let public_key = match self.public_key.as_ref() {
-            Some(key) => &key.0,
+            Some(key) => key.0.clone(), // Clone the boxed key
             None => return err_rv!(CKR_KEY_HANDLE_INVALID),
         };
 
@@ -512,12 +512,30 @@ impl Verify for MLDSAOperation {
         })?;
 
         let decoded_signature = MLDSA65Signature::new(sig);
+        let message = self.data.clone();
 
-        verify(public_key.as_ref(), &self.data, &[], &decoded_signature)
+        let handle = std::thread::Builder::new()
+            .name("mldsa_verify_thread".into())
+            .stack_size(4 * 1024 * 1024)
+            .spawn(move || {
+                verify(public_key.as_ref(), &message, &[], &decoded_signature)
+            })
+            .map_err(|_| {
+                error!("Thread spawn failed during verification");
+                to_rv!(CKR_FUNCTION_FAILED)
+            })?;
+
+        handle
+            .join()
+            .map_err(|_| {
+                error!("Thread panicked during verification");
+                to_rv!(CKR_FUNCTION_FAILED)
+            })?
             .map_err(|e| {
                 error!("Verification failed: {e:?}");
                 to_rv!(CKR_SIGNATURE_INVALID)
             })?;
+
         Ok(())
     }
 
