@@ -5,10 +5,11 @@ use crate::error::*;
 use crate::interface::*;
 use crate::mechanism::*;
 use crate::object::*;
-use crate::{attr_element, bytes_attr_not_empty, err_rv};
-use ml_dsa::signature::Signer;
-use ml_dsa::signature::Verifier;
-use ml_dsa::*;
+use crate::{attr_element, bytes_attr_not_empty, err_rv, error, to_rv};
+use libcrux_ml_dsa::ml_dsa_65::{
+    generate_key_pair, sign, verify, MLDSA65Signature, MLDSA65SigningKey,
+    MLDSA65VerificationKey,
+};
 
 use once_cell::sync::Lazy;
 use std::fmt::Debug;
@@ -16,11 +17,23 @@ use std::fmt::Debug;
 #[cfg(test)]
 mod tests;
 
-#[derive(Debug)]
-struct PubKey(Box<VerifyingKey<MlDsa65>>);
+struct PubKey(Box<MLDSA65VerificationKey>);
+impl std::fmt::Debug for PubKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PubKey")
+            .field("value", &"<redacted>")
+            .finish()
+    }
+}
 
-#[derive(Debug)]
-struct PrivKey(Box<SigningKey<MlDsa65>>);
+struct PrivKey(Box<MLDSA65SigningKey>);
+impl std::fmt::Debug for PrivKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PubKey")
+            .field("value", &"<redacted>")
+            .finish()
+    }
+}
 
 #[derive(Debug)]
 pub struct MlDsaPubFactory {
@@ -248,7 +261,6 @@ impl Mechanism for MlDsaMechanism {
         pubkey_template: &[CK_ATTRIBUTE],
         prikey_template: &[CK_ATTRIBUTE],
     ) -> KResult<(Object, Object)> {
-        let mut rng = crate::rng::RNG::new().expect("RNG instantiation failed");
 
         let mut public_key =
             PUBLIC_KEY_FACTORY.default_object_generate(pubkey_template)?;
@@ -276,17 +288,24 @@ impl Mechanism for MlDsaMechanism {
         {
             return err_rv!(CKR_TEMPLATE_INCONSISTENT);
         }
-        let key_pair = MlDsa65::key_gen(&mut rng);
-        let pk = Box::new(key_pair.verifying_key().clone());
-        let sk = Box::new(key_pair.signing_key().clone());
+        let rng = [0u8; libcrux_ml_dsa::KEY_GENERATION_RANDOMNESS_SIZE];
+        let key_pair = generate_key_pair(rng);
+        let pk = Box::new(key_pair.verification_key);
+        let sk = Box::new(key_pair.signing_key);
         let pk = PubKey(pk);
         let sk = PrivKey(sk);
 
         // TODO: check if CKA_VALUE is right here
-        public_key.set_attr(from_bytes(CKA_VALUE, pk.0.encode().to_vec()))?;
+        public_key.set_attr(from_bytes(
+            CKA_VALUE,
+            pk.0.as_ref().as_slice().to_vec(),
+        ))?;
 
         // TODO: check if CKA_VALUE is right here
-        private_key.set_attr(from_bytes(CKA_VALUE, sk.0.encode().to_vec()))?;
+        private_key.set_attr(from_bytes(
+            CKA_VALUE,
+            sk.0.as_ref().as_slice().to_vec(),
+        ))?;
 
         default_key_attributes(&mut private_key, mech.mechanism)?;
         default_key_attributes(&mut public_key, mech.mechanism)?;
@@ -425,19 +444,19 @@ impl Sign for MLDSAOperation {
             Some(key) => &key.0,
             None => return err_rv!(CKR_KEY_HANDLE_INVALID),
         };
-
+        let randomness = [0u8; libcrux_ml_dsa::SIGNING_RANDOMNESS_SIZE];
         // Perform the signing operation
-        let signed_data = match private_key.try_sign(&self.data) {
-            Ok(sig) => sig,
-            Err(_) => return err_rv!(CKR_FUNCTION_FAILED),
-        };
-
-        let encoded_signature = signed_data.encode().to_vec();
+        let signed_data = sign(&private_key, &self.data, &[], randomness)
+            .map_err(|e| {
+                error!("Signing operation failed: {e:?}");
+                to_rv!(CKR_FUNCTION_FAILED)
+            })?;
+        let encoded_signature = signed_data.as_ref();
 
         if encoded_signature.len() != signlen {
             return err_rv!(CKR_BUFFER_TOO_SMALL);
         }
-        signature.copy_from_slice(&encoded_signature);
+        signature.copy_from_slice(encoded_signature);
         Ok(())
     }
 
@@ -487,17 +506,18 @@ impl Verify for MLDSAOperation {
             None => return err_rv!(CKR_KEY_HANDLE_INVALID),
         };
 
-        let decoded_signature = match Signature::<MlDsa65>::try_from(signature)
-        {
-            Ok(sig) => sig,
-            Err(_) => return err_rv!(CKR_SIGNATURE_INVALID), // Error if decoding fails
-        };
+        let sig = signature.try_into().map_err(|_| {
+            error!("Signature input slice was not of correct length");
+            to_rv!(CKR_SIGNATURE_INVALID)
+        })?;
 
-        match public_key.verify(&self.data, &decoded_signature) {
-            Ok(_) => (),
-            Err(_) => return err_rv!(CKR_SIGNATURE_INVALID),
-        };
+        let decoded_signature = MLDSA65Signature::new(sig);
 
+        verify(public_key.as_ref(), &self.data, &[], &decoded_signature)
+            .map_err(|e| {
+                error!("Verification failed: {e:?}");
+                to_rv!(CKR_SIGNATURE_INVALID)
+            })?;
         Ok(())
     }
 
@@ -536,21 +556,20 @@ impl std::convert::TryFrom<&[u8]> for PubKey {
     type Error = KError;
 
     fn try_from(pk_bytes: &[u8]) -> KResult<Self> {
-        let encoded_key =
-            match EncodedVerifyingKey::<MlDsa65>::try_from(pk_bytes) {
-                Ok(encoded) => encoded,
-                Err(e) => {
-                    #[cfg(test)]
-                    {
-                        log::debug!("Error: {e:?}");
-                    }
-
-                    let _ = e;
-                    return err_rv!(CKR_GENERAL_ERROR);
+        let encoded_key = match pk_bytes.try_into() {
+            Ok(encoded) => encoded,
+            Err(e) => {
+                #[cfg(test)]
+                {
+                    log::debug!("Error: {e:?}");
                 }
-            };
 
-        let pk = Box::new(VerifyingKey::<MlDsa65>::decode(&encoded_key));
+                let _ = e;
+                return err_rv!(CKR_GENERAL_ERROR);
+            }
+        };
+
+        let pk = Box::new(MLDSA65VerificationKey::new(encoded_key));
 
         Ok(PubKey(pk))
     }
@@ -573,8 +592,7 @@ impl std::convert::TryFrom<&[u8]> for PrivKey {
     type Error = KError;
 
     fn try_from(sk_bytes: &[u8]) -> KResult<Self> {
-        let encoded_key = match EncodedSigningKey::<MlDsa65>::try_from(sk_bytes)
-        {
+        let encoded_key = match sk_bytes.try_into() {
             Ok(encoded) => encoded,
             Err(e) => {
                 #[cfg(test)]
@@ -587,7 +605,7 @@ impl std::convert::TryFrom<&[u8]> for PrivKey {
             }
         };
 
-        let sk = Box::new(SigningKey::<MlDsa65>::decode(&encoded_key));
+        let sk = Box::new(MLDSA65SigningKey::new(encoded_key));
 
         Ok(PrivKey(sk))
     }
