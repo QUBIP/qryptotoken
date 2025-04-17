@@ -3,9 +3,10 @@
 use crate::attribute::{from_bool, from_bytes, from_ulong};
 use crate::error::*;
 use crate::interface::*;
+use crate::log::*;
 use crate::mechanism::*;
 use crate::object::*;
-use crate::{attr_element, bytes_attr_not_empty, err_rv, error, to_rv};
+use crate::{attr_element, bytes_attr_not_empty, err_rv, to_rv};
 use libcrux_ml_dsa::ml_dsa_65::{
     generate_key_pair, sign, verify, MLDSA65Signature, MLDSA65SigningKey,
     MLDSA65VerificationKey,
@@ -261,7 +262,6 @@ impl Mechanism for MlDsaMechanism {
         pubkey_template: &[CK_ATTRIBUTE],
         prikey_template: &[CK_ATTRIBUTE],
     ) -> KResult<(Object, Object)> {
-
         let mut public_key =
             PUBLIC_KEY_FACTORY.default_object_generate(pubkey_template)?;
 
@@ -507,7 +507,7 @@ impl Verify for MLDSAOperation {
         };
 
         let sig = signature.try_into().map_err(|_| {
-            error!("Signature input slice was not of correct length");
+            error!(target: crate::QRYOPTIC_TARGET, "Signature input slice was not of correct length");
             to_rv!(CKR_SIGNATURE_INVALID)
         })?;
 
@@ -521,21 +521,27 @@ impl Verify for MLDSAOperation {
                 verify(public_key.as_ref(), &message, &[], &decoded_signature)
             })
             .map_err(|_| {
-                error!("Thread spawn failed during verification");
+                error!(target: crate::QRYOPTIC_TARGET, "Thread spawn failed during verification");
                 to_rv!(CKR_FUNCTION_FAILED)
             })?;
 
-        handle
+        let ret = handle
             .join()
             .map_err(|_| {
-                error!("Thread panicked during verification");
+                error!(target: crate::QRYOPTIC_TARGET, "Thread panicked during verification");
                 to_rv!(CKR_FUNCTION_FAILED)
             })?
             .map_err(|e| {
-                error!("Verification failed: {e:?}");
+                error!(target: crate::QRYOPTIC_TARGET, "Verification failed: {e:?}");
                 to_rv!(CKR_SIGNATURE_INVALID)
-            })?;
+            });
 
+        if ret.is_err() {
+            error!(target: crate::QRYOPTIC_TARGET, "Internal verification failure");
+            return ret;
+        }
+
+        debug!(target: crate::QRYOPTIC_TARGET, "🦀 👌👌👌 Verification succesful!");
         Ok(())
     }
 

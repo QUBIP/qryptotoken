@@ -119,7 +119,10 @@ macro_rules! res_or_ret {
     ($ret:expr) => {
         match $ret {
             Ok(x) => x,
-            Err(e) => return err_to_rv!(e),
+            Err(e) => {
+                crate::error!(target: crate::QRYOPTIC_TARGET, "Failed with {e:?}");
+                return err_to_rv!(e)
+            },
         }
     };
 }
@@ -462,7 +465,7 @@ extern "C" fn fn_initialize(_init_args: CK_VOID_PTR) -> CK_RV {
 
     #[cfg(feature = "env_logger")]
     try_init_logging().expect("Failed initializing logger subsystem");
-    debug!(target: crate::QRYOPTIC_TARGET, "🦀 Loaded");
+    info!(target: crate::QRYOPTIC_TARGET, "🦀 Loaded");
 
     if _init_args.is_null() {
         conf = res_or_ret!(find_conf());
@@ -815,13 +818,13 @@ extern "C" fn fn_create_object(
     let session = res_or_ret!(rstate.get_session(s_handle));
     let tmpl: &mut [CK_ATTRIBUTE] =
         unsafe { std::slice::from_raw_parts_mut(template, count as usize) };
-    debug!(target: crate::QRYOPTIC_TARGET, "🦀 tmpl: {tmpl:?}");
+    trace!(target: crate::QRYOPTIC_TARGET, "🦀 tmpl: {tmpl:?}");
     if !session.is_writable() {
         fail_if_cka_token_true!(&*tmpl);
     }
     let slot_id = session.get_slot_id();
     let mut token = res_or_ret!(rstate.get_token_from_slot_mut(slot_id));
-    //debug!(target: crate::QRYOPTIC_TARGET, "🦀 token: {token:#?}");
+    //trace!(target: crate::QRYOPTIC_TARGET, "🦀 token: {token:#?}");
 
     let oh = match token.create_object(s_handle, tmpl) {
         Ok(h) => h,
@@ -936,17 +939,25 @@ extern "C" fn fn_find_objects_init(
     template: CK_ATTRIBUTE_PTR,
     count: CK_ULONG,
 ) -> CK_RV {
+    trace!(target: crate::QRYOPTIC_TARGET, "🦀 fn_find_objects_init({s_handle:?}, {template:?}, {count:?}) called");
+    trace!(target: crate::QRYOPTIC_TARGET, "🦀 getting rstate");
     let rstate = global_rlock!(STATE);
+    trace!(target: crate::QRYOPTIC_TARGET, "🦀 getting session");
     let mut session = res_or_ret!(rstate.get_session_mut(s_handle));
+    trace!(target: crate::QRYOPTIC_TARGET, "🦀 getting slot_id");
     let slot_id = session.get_slot_id();
+    trace!(target: crate::QRYOPTIC_TARGET, "🦀 getting token");
     let mut token = res_or_ret!(rstate.get_token_from_slot_mut(slot_id));
     let tmpl: &[CK_ATTRIBUTE] = if template.is_null() || !template.is_aligned()
     {
+        warn!(target: crate::QRYOPTIC_TARGET, "Invalid pTemplate");
         //return CKR_ARGUMENTS_BAD;
         &[]
     } else {
+        trace!(target: crate::QRYOPTIC_TARGET, "🦀 getting tmpl");
         unsafe { std::slice::from_raw_parts(template, count as usize) }
     };
+    trace!(target: crate::QRYOPTIC_TARGET, "🦀 calling new_search_operation");
     ret_to_rv!(session.new_search_operation(&mut token, tmpl))
 }
 
@@ -956,6 +967,7 @@ extern "C" fn fn_find_objects(
     max_object_count: CK_ULONG,
     pul_object_count: CK_ULONG_PTR,
 ) -> CK_RV {
+    trace!(target: crate::QRYOPTIC_TARGET, "🦀 fn_find_objects called");
     if ph_object.is_null() {
         return CKR_ARGUMENTS_BAD;
     }
@@ -983,6 +995,7 @@ extern "C" fn fn_find_objects(
     CKR_OK
 }
 extern "C" fn fn_find_objects_final(s_handle: CK_SESSION_HANDLE) -> CK_RV {
+    trace!(target: crate::QRYOPTIC_TARGET, "🦀 fn_find_objects_final called");
     let rstate = global_rlock!(STATE);
     let mut session = res_or_ret!(rstate.get_session_mut(s_handle));
     match res_or_ret!(session.get_operation_mut()) {
