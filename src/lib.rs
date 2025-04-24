@@ -75,12 +75,9 @@ mod aes;
 #[cfg(feature = "pure-rust")]
 mod rust_aes;
 
-<<<<<<< HEAD
-=======
 #[cfg(feature = "pure-rust")]
 mod kem;
 
->>>>>>> 7f2cb4b (chore(): `cargo fmt` pass)
 #[cfg(not(feature = "pure-rust"))]
 mod pbkdf2;
 
@@ -943,8 +940,13 @@ extern "C" fn fn_find_objects_init(
     let mut session = res_or_ret!(rstate.get_session_mut(s_handle));
     let slot_id = session.get_slot_id();
     let mut token = res_or_ret!(rstate.get_token_from_slot_mut(slot_id));
-    let tmpl: &[CK_ATTRIBUTE] =
-        unsafe { std::slice::from_raw_parts(template, count as usize) };
+    let tmpl: &[CK_ATTRIBUTE] = if template.is_null() || !template.is_aligned()
+    {
+        //return CKR_ARGUMENTS_BAD;
+        &[]
+    } else {
+        unsafe { std::slice::from_raw_parts(template, count as usize) }
+    };
     ret_to_rv!(session.new_search_operation(&mut token, tmpl))
 }
 
@@ -1571,37 +1573,23 @@ extern "C" fn fn_verify_init(
     let mechanism: &CK_MECHANISM = unsafe { &*mechptr };
     let slot_id = session.get_slot_id();
     let mut token = res_or_ret!(rstate.get_token_from_slot_mut(slot_id));
-    let key = match token.get_object_by_handle(key_handle) {
-        Ok(k) => {
-            trace!(target: crate::QRYOPTIC_TARGET, "🔑 key: {k:?}");
-            k
-        }
-        Err(e) => {
-            error!(target: crate::QRYOPTIC_TARGET, "💥 Invalid key handle: {key_handle:?} – {e:?}");
-            return err_to_rv!(e);
-        }
-    };
+    trace!(target: crate::QRYOPTIC_TARGET, "About to retrieve object by handle: {key_handle:?}");
+    let key = res_or_ret!(token.get_object_by_handle(key_handle));
+    trace!(target: crate::QRYOPTIC_TARGET, "🔑 key: {key:?}");
+    let keyref = &key;
     trace!(target: crate::QRYOPTIC_TARGET, "🔑 keyref: {keyref:p}");
     trace!(target: crate::QRYOPTIC_TARGET, "🔍 About to check allowed mechs with keyref: {keyref:p}");
+    ok_or_ret!(check_allowed_mechs(mechanism, keyref));
     trace!(target: crate::QRYOPTIC_TARGET, "✅ check_allowed_mechs passed. keyref at: {keyref:p}");
 
-    let mech = match token.get_mechanisms().get(mechanism.mechanism) {
-        Ok(m) => m,
-        Err(e) => {
-            error!(target: crate::QRYOPTIC_TARGET, "❌ Unknown mechanism: {:#X}", mechanism.mechanism);
-            return err_to_rv!(e);
-        }
-    };
+    trace!(target: crate::QRYOPTIC_TARGET, "🔍 About to retrieve mechanism {:#X}", mechanism.mechanism);
+    let mech = res_or_ret!(token.get_mechanisms().get(mechanism.mechanism));
     debug!(target: crate::QRYOPTIC_TARGET, "🔗 Fetched mechanism: {mech:?}");
-    if mech.info().flags & CKF_VERIFY == CKF_VERIFY {
+
+    if (mech.info().flags & CKF_VERIFY) == CKF_VERIFY {
         trace!(target: crate::QRYOPTIC_TARGET, "🔗 Calling verify_new({mechanism:p}, {keyref:p})");
-            Ok(op) => op,
-            Err(e) => {
-                error!(target: crate::QRYOPTIC_TARGET, "💥 verify_new failed: {:?}", e);
-                return err_to_rv!(e);
-            }
-        };
-        trace!(target: crate::QRYOPTIC_TARGET, "🔗 verify_new not faillllllllllllllllllllled");
+        let operation = res_or_ret!(mech.verify_new(mechanism, keyref));
+        trace!(target: crate::QRYOPTIC_TARGET, "🔗 verify_new did not fail!!!!!!!!!!!!!!!!!!!!!!");
         session.set_operation(Operation::Verify(operation), false);
         CKR_OK
     } else {

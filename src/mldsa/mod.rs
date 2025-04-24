@@ -60,7 +60,7 @@ impl MlDsaPubFactory {
         data.attributes.append(&mut data.init_common_key_attrs());
         data.attributes
             .append(&mut data.init_common_public_key_attrs());
-        data.attributes.push(attr_element!(CKA_PUBLIC_KEY_INFO; OAFlags::RequiredOnCreate | OAFlags::Unchangeable; from_bytes; val Vec::new()));
+        data.attributes.push(attr_element!(CKA_VALUE; OAFlags::RequiredOnCreate | OAFlags::Unchangeable; from_bytes; val Vec::new()));
 
         /* default to private */
         let private = attr_element!(CKA_PRIVATE; OAFlags::Defval | OAFlags::ChangeOnCopy; from_bool; val true);
@@ -86,6 +86,7 @@ impl ObjectFactory for MlDsaPubFactory {
 
         mldsa_import(&mut obj)?;
 
+        if obj.get_attr(CKA_VALUE).is_none() {
             crate::error!(target: crate::QRYOPTIC_TARGET, "🦀 CKR_TEMPLATE_INCOMPLETE");
             return err_rv!(CKR_TEMPLATE_INCOMPLETE);
         }
@@ -205,12 +206,12 @@ impl Mechanism for MlDsaMechanism {
             data: Vec::new(),
             finalized: false,
             in_use: false,
-            _sigctx: None,
         }))
     }
 
     fn verify_new(
         &self,
+        _mech: &CK_MECHANISM,
         key: &Object,
     ) -> KResult<Box<dyn Verify>> {
         crate::trace!(target: crate::QRYOPTIC_TARGET, "⭐️🦀 {}::verify_new() called", std::any::type_name::<Self>());
@@ -227,13 +228,13 @@ impl Mechanism for MlDsaMechanism {
             }
         }
 
+        let ret = Box::new(MLDSAOperation {
             output_len: make_output_length_from_obj(key)?,
             public_key: Some(PubKey::try_from(key)?),
             private_key: None,
             data: Vec::new(),
             finalized: false,
             in_use: false,
-            _sigctx: None,
         });
 
         crate::trace!(target: crate::QRYOPTIC_TARGET, "️🦀 {}::verify_new() DONE 👍", std::any::type_name::<Self>());
@@ -339,10 +340,9 @@ struct MLDSAOperation {
     finalized: bool,
     data: Vec<u8>,
     in_use: bool,
-    _sigctx: Option<Signature<MlDsa65>>,
 }
 
-impl crate::mechanism::MechOperation for MLDSAOperation {
+impl MechOperation for MLDSAOperation {
     fn finalized(&self) -> bool {
         self.finalized
     }

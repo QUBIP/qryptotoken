@@ -545,7 +545,6 @@ fn test_signature_generation() {
             data: Vec::new(),
             finalized: false,
             in_use: false,
-            _sigctx: None,
         };
 
         let ret = op.sign(&msg, buf.as_mut_slice());
@@ -1023,7 +1022,6 @@ fn test_signature_verification() {
             data: Vec::new(),
             finalized: false,
             in_use: false,
-            _sigctx: None,
         };
 
         let ret = op.verify(&msg, &expected_sig);
