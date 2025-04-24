@@ -50,6 +50,7 @@ use sizes::*;
 
 impl MlDsaPubFactory {
     pub fn new() -> MlDsaPubFactory {
+        crate::trace!(target: crate::QRYOPTIC_TARGET, "⭐️🦀 {}::new() called", std::any::type_name::<Self>());
         let mut data = MlDsaPubFactory {
             attributes: Vec::new(),
         };
@@ -72,17 +73,20 @@ impl MlDsaPubFactory {
             None => data.attributes.push(private),
         }
 
+        crate::trace!(target: crate::QRYOPTIC_TARGET, "🦀 {}::new() data={:?}", std::any::type_name::<Self>(), data);
+
         data
     }
 }
 
 impl ObjectFactory for MlDsaPubFactory {
     fn create(&self, template: &[CK_ATTRIBUTE]) -> KResult<Object> {
+        crate::trace!(target: crate::QRYOPTIC_TARGET, "🦀 {}::create({template:?}) called", std::any::type_name::<Self>());
         let mut obj = self.default_object_create(template)?;
 
         mldsa_import(&mut obj)?;
 
-        if obj.get_attr(CKA_PUBLIC_KEY_INFO).is_none() {
+            crate::error!(target: crate::QRYOPTIC_TARGET, "🦀 CKR_TEMPLATE_INCOMPLETE");
             return err_rv!(CKR_TEMPLATE_INCOMPLETE);
         }
 
@@ -207,20 +211,22 @@ impl Mechanism for MlDsaMechanism {
 
     fn verify_new(
         &self,
-        mech: &CK_MECHANISM,
         key: &Object,
     ) -> KResult<Box<dyn Verify>> {
+        crate::trace!(target: crate::QRYOPTIC_TARGET, "⭐️🦀 {}::verify_new() called", std::any::type_name::<Self>());
         if self.info.flags & CKF_VERIFY != CKF_VERIFY {
+            crate::error!(target: crate::QRYOPTIC_TARGET, "️🦀 CKR_MECHANISM_INVALID");
             return err_rv!(CKR_MECHANISM_INVALID);
         }
 
         match key.check_key_ops(CKO_PUBLIC_KEY, CKK_ML_DSA, CKA_VERIFY) {
             Ok(_) => (),
-            Err(e) => return Err(e),
+            Err(e) => {
+                crate::error!(target: crate::QRYOPTIC_TARGET, "️🦀 Some error checking key ops: {e:?}");
+                return Err(e);
+            }
         }
 
-        let _ = mech;
-        Ok(Box::new(MLDSAOperation {
             output_len: make_output_length_from_obj(key)?,
             public_key: Some(PubKey::try_from(key)?),
             private_key: None,
@@ -228,7 +234,10 @@ impl Mechanism for MlDsaMechanism {
             finalized: false,
             in_use: false,
             _sigctx: None,
-        }))
+        });
+
+        crate::trace!(target: crate::QRYOPTIC_TARGET, "️🦀 {}::verify_new() DONE 👍", std::any::type_name::<Self>());
+        return Ok(ret);
     }
 
     fn generate_keypair(
@@ -317,6 +326,7 @@ pub fn register(mechs: &mut Mechanisms, ot: &mut ObjectFactories) {
 }
 
 fn mldsa_import(obj: &mut Object) -> KResult<()> {
+    crate::trace!(target: crate::QRYOPTIC_TARGET, "🦀 mldsa_import({obj:?}) called");
     bytes_attr_not_empty!(obj; CKA_VALUE);
     Ok(())
 }

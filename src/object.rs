@@ -311,12 +311,19 @@ macro_rules! bytes_attr_not_empty {
         match $obj.get_attr_as_bytes($id) {
             Ok(e) => {
                 if e.len() == 0 {
+                    crate::error!(target: crate::QRYOPTIC_TARGET, "🦀 CKR_ATTRIBUTE_VALUE_INVALID");
                     return err_rv!(CKR_ATTRIBUTE_VALUE_INVALID);
                 }
             }
             Err(e) => match e {
-                KError::NotFound(_) => return err_rv!(CKR_TEMPLATE_INCOMPLETE),
-                _ => return Err(e),
+                KError::NotFound(_) => {
+                    crate::error!(target: crate::QRYOPTIC_TARGET, "🦀 CKR_TEMPLATE_INCOMPLETE");
+                    return err_rv!(CKR_TEMPLATE_INCOMPLETE)
+                },
+                _ => {
+                    crate::error!(target: crate::QRYOPTIC_TARGET, "🦀 {e:?}");
+                    return Err(e)
+                },
             },
         }
     };
@@ -324,6 +331,8 @@ macro_rules! bytes_attr_not_empty {
 
 pub trait ObjectFactory: Debug + Send + Sync {
     fn create(&self, _template: &[CK_ATTRIBUTE]) -> KResult<Object> {
+        crate::trace!(target: crate::QRYOPTIC_TARGET, "🦀 {}::create called", std::any::type_name::<Self>());
+        crate::warn!(target: crate::QRYOPTIC_TARGET, "🦀 {}::create is not supported", std::any::type_name::<Self>());
         return err_rv!(CKR_GENERAL_ERROR);
     }
 
@@ -354,6 +363,7 @@ pub trait ObjectFactory: Debug + Send + Sync {
         &self,
         template: &[CK_ATTRIBUTE],
     ) -> KResult<Object> {
+        crate::trace!(target: crate::QRYOPTIC_TARGET, "🦀 {}::default_object_create({template:?}) called", std::any::type_name::<Self>());
         self.internal_object_create(
             template,
             OAFlags::NeverSettable,
@@ -440,20 +450,26 @@ pub trait ObjectFactory: Debug + Send + Sync {
         unacceptable_flags: OAFlags,
         required_flags: OAFlags,
     ) -> KResult<Object> {
+        crate::trace!(target: crate::QRYOPTIC_TARGET, "🦀 {}::internal_object_create({template:#?}, {unacceptable_flags:?}, {required_flags:?}) called", std::any::type_name::<Self>());
         let attributes = self.get_attributes();
         let mut obj = Object::new();
 
+        crate::trace!(target: crate::QRYOPTIC_TARGET, "🦀 current_attributes: {attributes:?}");
         for ck_attr in template {
             match attributes.iter().find(|a| a.get_type() == ck_attr.type_) {
                 Some(attr) => {
                     if attr.is(unacceptable_flags)
                         || attr.is(OAFlags::NeverSettable)
                     {
+                        crate::error!(target: crate::QRYOPTIC_TARGET, "🦀 check on unacceptable_flags failed");
                         return err_rv!(CKR_ATTRIBUTE_TYPE_INVALID);
                     }
                     /* duplicate? */
                     match obj.get_attr(ck_attr.type_) {
-                        Some(_) => return err_rv!(CKR_TEMPLATE_INCONSISTENT),
+                        Some(_) => {
+                            crate::error!(target: crate::QRYOPTIC_TARGET, "🦀 CKR_TEMPLATE_INCONSISTENT");
+                            return err_rv!(CKR_TEMPLATE_INCONSISTENT);
+                        }
                         None => (),
                     }
                     if !attr.is(OAFlags::Ignored) {
@@ -461,6 +477,7 @@ pub trait ObjectFactory: Debug + Send + Sync {
                     }
                 }
                 None => {
+                    crate::error!(target: crate::QRYOPTIC_TARGET, "🦀 CKR_ATTRIBUTE_VALUE_INVALID: Cannot find attribute with type: {:?}", ck_attr.type_);
                     return err_rv!(CKR_ATTRIBUTE_VALUE_INVALID);
                 }
             }
@@ -474,6 +491,7 @@ pub trait ObjectFactory: Debug + Send + Sync {
                     } else if attr.is(required_flags)
                         || attr.is(OAFlags::AlwaysRequired)
                     {
+                        crate::error!(target: crate::QRYOPTIC_TARGET, "🦀 check on required_flags failed");
                         return err_rv!(CKR_TEMPLATE_INCOMPLETE);
                     }
                 }
@@ -1105,6 +1123,7 @@ pub struct ObjectType {
 
 impl ObjectType {
     pub fn new(class: CK_ULONG, type_: CK_ULONG) -> ObjectType {
+        crate::trace!(target: crate::QRYOPTIC_TARGET, "🦀 {}::new called", std::any::type_name::<Self>());
         ObjectType {
             class: class,
             type_: type_,
@@ -1136,20 +1155,35 @@ impl ObjectFactories {
         &self,
         otype: ObjectType,
     ) -> KResult<&Box<dyn ObjectFactory>> {
+        crate::trace!(target: crate::QRYOPTIC_TARGET, "🦀 {}::get_factory({otype:?}) called", std::any::type_name::<Self>());
         match self.factories.get(&otype) {
-            Some(b) => Ok(b),
-            None => err_rv!(CKR_ATTRIBUTE_VALUE_INVALID),
+            Some(b) => {
+                crate::trace!(target: crate::QRYOPTIC_TARGET, "🦀 {}::get_factory({otype:?}): Returning factory Ok({b:?})", std::any::type_name::<Self>());
+                Ok(b)
+            }
+            None => {
+                crate::error!(target: crate::QRYOPTIC_TARGET, "🦀 {}::get_factory({otype:?}): Cannot find maching factory", std::any::type_name::<Self>());
+                err_rv!(CKR_ATTRIBUTE_VALUE_INVALID)
+            }
         }
     }
 
     pub fn create(&self, template: &[CK_ATTRIBUTE]) -> KResult<Object> {
+        crate::trace!(target: crate::QRYOPTIC_TARGET, "🦀 {}::create() called", std::any::type_name::<Self>());
         let class = match template.iter().find(|a| a.type_ == CKA_CLASS) {
             Some(c) => c.to_ulong()?,
-            None => return err_rv!(CKR_TEMPLATE_INCOMPLETE),
+            None => {
+                crate::error!(target: crate::QRYOPTIC_TARGET, "🦀 ObjectFactories::create Missing CKA_CLASS");
+                return err_rv!(CKR_TEMPLATE_INCOMPLETE);
+            }
         };
         let type_ = match class {
-            CKO_DATA => 0,
+            CKO_DATA => {
+                crate::trace!(target: crate::QRYOPTIC_TARGET, "🦀 ObjectFactories::create CKA_CLASS is CKO_DATA: {class:?}");
+                0
+            }
             CKO_CERTIFICATE => {
+                crate::trace!(target: crate::QRYOPTIC_TARGET, "🦀 ObjectFactories::create CKA_CLASS is CKO_CERTIFICATE: {class:?}");
                 match template.iter().find(|a| a.type_ == CKA_CERTIFICATE_TYPE)
                 {
                     Some(c) => c.to_ulong()?,
@@ -1157,18 +1191,24 @@ impl ObjectFactories {
                 }
             }
             CKO_PUBLIC_KEY => {
+                crate::trace!(target: crate::QRYOPTIC_TARGET, "🦀 ObjectFactories::create CKA_CLASS is CKO_PUBLIC_KEY: {class:?}");
                 match template.iter().find(|a| a.type_ == CKA_KEY_TYPE) {
                     Some(k) => k.to_ulong()?,
-                    None => return err_rv!(CKR_TEMPLATE_INCOMPLETE),
+                    None => {
+                        crate::error!(target: crate::QRYOPTIC_TARGET, "🦀 ObjectFactories::create Missing CKA_KEY_TYPE");
+                        return err_rv!(CKR_TEMPLATE_INCOMPLETE);
+                    }
                 }
             }
             CKO_PRIVATE_KEY => {
+                crate::trace!(target: crate::QRYOPTIC_TARGET, "🦀 ObjectFactories::create CKA_CLASS is CKO_PRIVATE_KEY: {class:?}");
                 match template.iter().find(|a| a.type_ == CKA_KEY_TYPE) {
                     Some(k) => k.to_ulong()?,
                     None => return err_rv!(CKR_TEMPLATE_INCOMPLETE),
                 }
             }
             CKO_SECRET_KEY => {
+                crate::trace!(target: crate::QRYOPTIC_TARGET, "🦀 ObjectFactories::create CKA_CLASS is CKO_SECRET_KEY: {class:?}");
                 match template.iter().find(|a| a.type_ == CKA_KEY_TYPE) {
                     Some(k) => k.to_ulong()?,
                     None => return err_rv!(CKR_TEMPLATE_INCOMPLETE),
@@ -1179,7 +1219,12 @@ impl ObjectFactories {
              *  CKO_MECHANISM, CKO_OTP_KEY, CKO_PROFILE,
              *  CKO_VENDOR_DEFINED
              */
-            _ => return err_rv!(CKR_DEVICE_ERROR),
+            _ => {
+                return {
+                    crate::warn!(target: crate::QRYOPTIC_TARGET, "🦀 ObjectFactories::create Unsupported CKA_CLASS: {class:?}");
+                    err_rv!(CKR_DEVICE_ERROR)
+                }
+            }
         };
         self.get_factory(ObjectType::new(class, type_))?
             .create(template)
