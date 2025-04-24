@@ -6,6 +6,12 @@ use crate::token::Token;
 use crate::{KError, KResult};
 use libcrux::kem::*;
 
+pub fn validate_params(
+    pparams: *const CK_NSS_KEM_PARAMETER_SET_TYPE,
+) -> KResult<()> {
+    todo!("Validate parameters for MLKEM");
+}
+
 #[cfg(any())]
 pub fn encapsulate(
     public_key: &Object,

@@ -26,18 +26,6 @@ extern "C" fn fn_encapsulate(
     CKR_OK
 }
 
-fn validate_mechanism(p_mechanism: CK_MECHANISM_PTR) {
-    #[cfg(not(debug_assertions))] // code compiled only in release builds
-    {
-        todo!("Validate mechanism: {:?}", p_mechanism);
-    }
-    #[cfg(debug_assertions)] // code compiled only in development builds
-    {
-        let _ = p_mechanism;
-        return;
-    }
-}
-
 extern "C" fn fn_decapsulate(
     s_handle: CK_SESSION_HANDLE,
     p_mechanism: CK_MECHANISM_PTR,
@@ -56,7 +44,7 @@ extern "C" fn fn_decapsulate(
         return CKR_ARGUMENTS_BAD;
     }
 
-    validate_mechanism(p_mechanism);
+    res_or_ret!(kem::validate_mechanism(p_mechanism));
 
     let ct_len = {
         todo!("extract ct_len from p_mechanism");
@@ -66,13 +54,13 @@ extern "C" fn fn_decapsulate(
         return CKR_ARGUMENTS_BAD;
     }
 
+    let rstate = global_rlock!(STATE);
+    let mut token = res_or_ret!(rstate.get_token_from_session_mut(s_handle));
+
     // Safe because we already checked phKey is not null
     unsafe {
         *phKey = CK_INVALID_HANDLE;
     };
-
-    let rstate = global_rlock!(STATE);
-    let mut token = res_or_ret!(rstate.get_token_from_session_mut(s_handle));
 
     let private_key = token
         .get_object_by_handle(h_private_key)
