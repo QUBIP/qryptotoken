@@ -1,5 +1,6 @@
 // Copyright 2023 Simo Sorce
 // See LICENSE.txt file for terms
+#![expect(clippy::single_component_path_imports)]
 
 use serde_json;
 use std::{error::Error, fmt};
@@ -84,20 +85,24 @@ macro_rules! some_or_err {
 #[macro_export]
 macro_rules! err_rv {
     ($ck_err:expr) => {
-        Err(KError::RvError(error::CkRvError { rv: $ck_err }))
+        Err(crate::error::KError::RvError(crate::error::CkRvError {
+            rv: $ck_err,
+        }))
     };
 }
 
 #[macro_export]
 macro_rules! err_not_found {
     ($err_str:expr) => {
-        Err(KError::NotFound(error::AttributeNotFound { s: $err_str }))
+        Err(crate::error::KError::NotFound(
+            crate::error::AttributeNotFound { s: $err_str },
+        ))
     };
 }
 
 #[macro_export]
 macro_rules! to_rv {
     ($ck_err:expr) => {
-        KError::RvError(error::CkRvError { rv: $ck_err })
+        crate::error::KError::RvError(crate::error::CkRvError { rv: $ck_err })
     };
 }

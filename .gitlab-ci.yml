@@ -1,0 +1,66 @@
+image: "rust:latest"
+
+variables:
+    GIT_SUBMODULE_STRATEGY: recursive
+    GIT_SUBMODULE_DEPTH: 1
+
+default:
+  before_script:
+    - export DEBIAN_FRONTEND=noninteractive
+
+    - apt-get update
+    - apt-get install -y openssl libssl-dev libclang-dev sqlite3 libsqlite3-dev
+
+    # Spit out relevant info
+    - rustc --version
+    - cargo --version
+    - openssl version -a
+
+stages:
+  - lint
+  - test
+
+build-code:
+  stage: test
+  script:
+    - cargo build
+
+#test-code:
+#  stage: test
+#  allow_failure: true # Should be removed once we get the tests passing
+#  script:
+#    - cargo test --lib
+#    #- cargo install cargo-tarpaulin
+#    #- cargo tarpaulin --ignore-tests
+
+lint-code:
+  stage: lint
+  image: "nisectuni/qubip-ossl-rust-runner:latest-nix"
+  variables:
+    GIT_SUBMODULE_STRATEGY: normal
+  before_script:
+    # Spit out relevant info
+    - rustc --version
+    - cargo --version
+    - openssl version -a
+  script:
+    - cargo fmt -- --check
+
+lint-code-clippy:
+  stage: lint
+  image: "nisectuni/qubip-ossl-rust-runner:latest-nix"
+  variables:
+    GIT_SUBMODULE_STRATEGY: normal
+  before_script:
+    # Spit out relevant info
+    - rustc --version
+    - cargo --version
+    - openssl version -a
+  script:
+    - cargo clippy -- -D warnings
+
+# audit-code:
+#   stage: test
+#   script:
+#     - cargo install cargo-audit
+#     - cargo audit

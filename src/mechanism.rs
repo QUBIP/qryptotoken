@@ -1,5 +1,8 @@
 // Copyright 2023 Simo Sorce
 // See LICENSE.txt file for terms
+#![allow(clippy::all)]
+#![expect(dead_code)]
+#![allow(unused_imports)]
 
 use std::collections::BTreeMap;
 

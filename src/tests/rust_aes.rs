@@ -1,4 +1,3 @@
-
 // Copyright 2024 Simo Sorce
 // See LICENSE.txt file for terms
 
@@ -56,7 +55,7 @@ fn test_aes_operations() {
             ulTagBits: (tag_len * 8) as CK_ULONG,
         };
 
-        let mut mechanism: CK_MECHANISM = CK_MECHANISM {
+        let mechanism: CK_MECHANISM = CK_MECHANISM {
             mechanism: CKM_AES_GCM,
             pParameter: void_ptr!(&param),
             ulParameterLen: sizeof!(CK_GCM_PARAMS),
@@ -78,14 +77,14 @@ fn test_aes_operations() {
         assert_eq!(enc_len, tag_len as CK_ULONG);
 
         /*let dec = ret_or_panic!(decrypt(
-            session,
-            handle,
-            &enc[..(offset as usize + tag_len)],
-            &mechanism,
-        ));
-        assert_eq!(dec.len(), data.len());
-        assert_eq!(data.as_bytes(), dec.as_slice());
-*/
+                    session,
+                    handle,
+                    &enc[..(offset as usize + tag_len)],
+                    &mechanism,
+                ));
+                assert_eq!(dec.len(), data.len());
+                assert_eq!(data.as_bytes(), dec.as_slice());
+        */
         /* retry with one-shot encrypt operation */
         let enc2 = ret_or_panic!(encrypt(
             session,

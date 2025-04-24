@@ -1,5 +1,6 @@
 // Copyright 2024 Simo Sorce
 // See LICENSE.txt file for terms
+#![allow(unused_imports)]
 
 use super::super::error;
 use super::super::interface;

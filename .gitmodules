@@ -4,4 +4,4 @@
 	branch = kryoptic
 [submodule "libcrux"]
 	path = libcrux
-	url = git@github.com:cryspen/libcrux.git
+	url = https://github.com/cryspen/libcrux.git

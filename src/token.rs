@@ -236,7 +236,7 @@ impl Token {
 
         #[cfg(not(feature = "pure-rust"))]
         aes::register(&mut token.mechanisms, &mut token.object_factories);
-        
+
         #[cfg(feature = "pure-rust")]
         aes::register(&mut token.mechanisms, &mut token.object_factories);
 

@@ -1,5 +1,9 @@
 // Copyright 2023 Simo Sorce
 // See LICENSE.txt file for terms
+#![allow(clippy::all)]
+#![allow(unused_imports)]
+#![expect(clippy::single_component_path_imports)]
+#![expect(dead_code)]
 
 // Helper routines to use with rust/asn1
 use super::err_rv;

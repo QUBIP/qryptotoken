@@ -3,13 +3,8 @@
 
 #[cfg(not(feature = "pure-rust"))]
 use {
-    super::drbg,
-    super::err_rv,
-    super::interface,
-    super::mechanism,
-
-    interface::*,
-    error::KError,
+    super::drbg, super::err_rv, super::interface, super::mechanism,
+    error::KError, interface::*,
 };
 
 #[cfg(feature = "pure-rust")]
@@ -43,7 +38,7 @@ impl RNG {
             _ => err_rv!(CKR_RANDOM_NO_RNG),
         }
     }
-    
+
     #[cfg(feature = "pure-rust")]
     pub fn new() -> KResult<RNG> {
         Ok(RNG {

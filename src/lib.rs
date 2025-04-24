@@ -1,5 +1,6 @@
 // Copyright 2023 Simo Sorce
 // See LICENSE.txt file for terms
+#![allow(clippy::all)]
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -71,6 +72,12 @@ mod aes;
 #[cfg(feature = "pure-rust")]
 mod rust_aes;
 
+<<<<<<< HEAD
+=======
+#[cfg(feature = "pure-rust")]
+mod kem;
+
+>>>>>>> 7f2cb4b (chore(): `cargo fmt` pass)
 #[cfg(not(feature = "pure-rust"))]
 mod pbkdf2;
 
@@ -2268,6 +2275,7 @@ extern "C" fn fn_get_info(info: CK_INFO_PTR) -> CK_RV {
     CKR_OK
 }
 
+#[expect(clippy::not_unsafe_ptr_arg_deref)]
 #[no_mangle]
 pub extern "C" fn C_GetFunctionList(fnlist: CK_FUNCTION_LIST_PTR_PTR) -> CK_RV {
     unsafe {
@@ -2611,6 +2619,7 @@ static INTERFACE_SET: [InterfaceData; 2] = [
     },
 ];
 
+#[expect(clippy::not_unsafe_ptr_arg_deref)]
 #[no_mangle]
 pub extern "C" fn C_GetInterfaceList(
     interfaces_list: CK_INTERFACE_PTR,
@@ -2645,6 +2654,7 @@ pub extern "C" fn C_GetInterfaceList(
     CKR_OK
 }
 
+#[expect(clippy::not_unsafe_ptr_arg_deref)]
 #[no_mangle]
 pub extern "C" fn C_GetInterface(
     interface_name: CK_UTF8CHAR_PTR,

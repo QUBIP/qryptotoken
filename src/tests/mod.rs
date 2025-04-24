@@ -47,6 +47,7 @@ struct TestToken<'a> {
 }
 
 impl TestToken<'_> {
+    #[expect(elided_named_lifetimes)]
     fn new<'a>(filename: &'a str, encrypted: bool) -> TestToken {
         let mut slots = SLOTS.write().unwrap();
         slots.id += 1;

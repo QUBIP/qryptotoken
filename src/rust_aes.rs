@@ -1,21 +1,25 @@
-use aes_gcm::{aead::{Aead, KeyInit, OsRng}, AeadCore, Aes128Gcm, Aes256Gcm, Key, Nonce};
-use aes_kw::{Kek, KekAes128, KekAes192, KekAes256};
+// Copyright (C) 2023-2025 Tampere University
+// See LICENSE.txt file for terms
+use aes_gcm::{
+    aead::{Aead, KeyInit},
+    Aes256Gcm, Key,
+};
+use aes_kw::{KekAes128, KekAes192, KekAes256};
 
 use zeroize::Zeroize;
 
 use crate::attribute;
-use crate::error;
 use crate::interface;
 use crate::object;
-use crate::{cast_params, attr_element, err_rv, bytes_to_vec};
+use crate::{attr_element, bytes_to_vec, cast_params, err_rv};
 
-use crate::attribute::{from_bytes, from_bool, from_ulong};
-use crate::error::{KError, KResult};
-use interface::*;
+use crate::attribute::{from_bool, from_bytes, from_ulong};
+use crate::error::KResult;
 use crate::object::{
     CommonKeyFactory, OAFlags, Object, ObjectAttr, ObjectFactories,
     ObjectFactory, ObjectType, SecretKeyFactory,
 };
+use interface::*;
 
 use crate::mechanism;
 use mechanism::*;
@@ -46,9 +50,11 @@ impl AesKeyFactory {
             attributes: Vec::new(),
         };
         data.attributes.append(&mut data.init_common_object_attrs());
-        data.attributes.append(&mut data.init_common_storage_attrs());
+        data.attributes
+            .append(&mut data.init_common_storage_attrs());
         data.attributes.append(&mut data.init_common_key_attrs());
-        data.attributes.append(&mut data.init_common_secret_key_attrs());
+        data.attributes
+            .append(&mut data.init_common_secret_key_attrs());
         data.attributes.push(attr_element!(CKA_VALUE; OAFlags::Defval | OAFlags::Sensitive | OAFlags::RequiredOnCreate | OAFlags::SettableOnlyOnCreate; from_bytes; val Vec::new()));
         data.attributes.push(attr_element!(CKA_VALUE_LEN; OAFlags::RequiredOnGenerate; from_bytes; val Vec::new()));
 
@@ -94,7 +100,7 @@ impl ObjectFactory for AesKeyFactory {
     ) -> KResult<Object> {
         /* AES keys can only be 16, (not for Rust implementation 24), 32 bytes long,
          * ensure we allow only these sizes */
-         match template.iter().position(|x| x.type_ == CKA_VALUE_LEN) {
+        match template.iter().position(|x| x.type_ == CKA_VALUE_LEN) {
             Some(idx) => {
                 let len = template[idx].to_ulong()? as usize;
                 if len > data.len() {
@@ -118,20 +124,20 @@ impl ObjectFactory for AesKeyFactory {
     }
 
     fn default_object_derive(
-            &self,
-            template: &[CK_ATTRIBUTE],
-            origin: &Object,
-        ) -> KResult<Object> {
-            let obj = self.internal_object_derive(template, origin)?;
+        &self,
+        template: &[CK_ATTRIBUTE],
+        origin: &Object,
+    ) -> KResult<Object> {
+        let obj = self.internal_object_derive(template, origin)?;
 
-            let key_len = self.get_key_len(&obj);
-            if key_len != 0 {
-                if check_key_len(key_len).is_err() {
-                    return err_rv!(CKR_TEMPLATE_INCONSISTENT);
-                }
+        let key_len = self.get_key_len(&obj);
+        if key_len != 0 {
+            if check_key_len(key_len).is_err() {
+                return err_rv!(CKR_TEMPLATE_INCONSISTENT);
             }
-            Ok(obj)
         }
+        Ok(obj)
+    }
 
     fn as_secret_key_factory(&self) -> KResult<&dyn SecretKeyFactory> {
         Ok(self)
@@ -142,11 +148,11 @@ impl CommonKeyFactory for AesKeyFactory {}
 
 impl SecretKeyFactory for AesKeyFactory {
     fn default_object_unwrap(
-            &self,
-            template: &[CK_ATTRIBUTE],
-        ) -> KResult<Object> {
-            ObjectFactory::default_object_unwrap(self, template)
-        }
+        &self,
+        template: &[CK_ATTRIBUTE],
+    ) -> KResult<Object> {
+        ObjectFactory::default_object_unwrap(self, template)
+    }
 
     fn set_key(&self, obj: &mut Object, key: Vec<u8>) -> KResult<()> {
         let keylen = key.len();
@@ -183,99 +189,99 @@ impl Mechanism for AesMechanism {
     }
 
     fn encryption_new(
-            &self,
-            mech: &CK_MECHANISM,
-            key: &Object,
-        ) -> KResult<Box<dyn Encryption>> {
-            if self.info.flags & CKF_ENCRYPT != CKF_ENCRYPT {
-                return err_rv!(CKR_MECHANISM_INVALID);
-            }
-            match key.check_key_ops(CKO_SECRET_KEY, CKK_AES, CKA_ENCRYPT) {
-                Ok(_) => (),
-                Err(e) => return Err(e),
-            }
-            Ok(Box::new(AesOperation::encrypt_new(mech, key)?))
+        &self,
+        mech: &CK_MECHANISM,
+        key: &Object,
+    ) -> KResult<Box<dyn Encryption>> {
+        if self.info.flags & CKF_ENCRYPT != CKF_ENCRYPT {
+            return err_rv!(CKR_MECHANISM_INVALID);
         }
+        match key.check_key_ops(CKO_SECRET_KEY, CKK_AES, CKA_ENCRYPT) {
+            Ok(_) => (),
+            Err(e) => return Err(e),
+        }
+        Ok(Box::new(AesOperation::encrypt_new(mech, key)?))
+    }
 
     fn decryption_new(
-            &self,
-            mech: &CK_MECHANISM,
-            key: &Object,
-        ) -> KResult<Box<dyn Decryption>> {
-            if self.info.flags & CKF_DECRYPT != CKF_DECRYPT {
-                return err_rv!(CKR_MECHANISM_INVALID);
-            }
-            match key.check_key_ops(CKO_SECRET_KEY, CKK_AES, CKA_DECRYPT) {
-                Ok(_) => (),
-                Err(e) => return Err(e),
-            }
-            Ok(Box::new(AesOperation::decrypt_new(mech, key)?))
+        &self,
+        mech: &CK_MECHANISM,
+        key: &Object,
+    ) -> KResult<Box<dyn Decryption>> {
+        if self.info.flags & CKF_DECRYPT != CKF_DECRYPT {
+            return err_rv!(CKR_MECHANISM_INVALID);
         }
-    
+        match key.check_key_ops(CKO_SECRET_KEY, CKK_AES, CKA_DECRYPT) {
+            Ok(_) => (),
+            Err(e) => return Err(e),
+        }
+        Ok(Box::new(AesOperation::decrypt_new(mech, key)?))
+    }
+
     fn generate_key(
-            &self,
-            mech: &CK_MECHANISM,
-            template: &[CK_ATTRIBUTE],
-            _: &Mechanisms,
-            _: &ObjectFactories,
-        ) -> KResult<Object> {
-            if mech.mechanism != CKM_AES_KEY_GEN {
-                return err_rv!(CKR_MECHANISM_INVALID);
-            }
-            let mut key = AES_KEY_FACTORY.default_object_generate(template)?;
-            if !key.check_or_set_attr(attribute::from_ulong(
-                CKA_CLASS,
-                CKO_SECRET_KEY,
-            ))? {
-                return err_rv!(CKR_TEMPLATE_INCONSISTENT);
-            }
-            if !key
-                .check_or_set_attr(attribute::from_ulong(CKA_KEY_TYPE, CKK_AES))?
-            {
-                return err_rv!(CKR_TEMPLATE_INCONSISTENT);
-            }
-    
-            object::default_secret_key_generate(&mut key)?;
-            object::default_key_attributes(&mut key, mech.mechanism)?;
-            Ok(key) 
+        &self,
+        mech: &CK_MECHANISM,
+        template: &[CK_ATTRIBUTE],
+        _: &Mechanisms,
+        _: &ObjectFactories,
+    ) -> KResult<Object> {
+        if mech.mechanism != CKM_AES_KEY_GEN {
+            return err_rv!(CKR_MECHANISM_INVALID);
         }
+        let mut key = AES_KEY_FACTORY.default_object_generate(template)?;
+        if !key.check_or_set_attr(attribute::from_ulong(
+            CKA_CLASS,
+            CKO_SECRET_KEY,
+        ))? {
+            return err_rv!(CKR_TEMPLATE_INCONSISTENT);
+        }
+        if !key
+            .check_or_set_attr(attribute::from_ulong(CKA_KEY_TYPE, CKK_AES))?
+        {
+            return err_rv!(CKR_TEMPLATE_INCONSISTENT);
+        }
+
+        object::default_secret_key_generate(&mut key)?;
+        object::default_key_attributes(&mut key, mech.mechanism)?;
+        Ok(key)
+    }
 
     fn wrap_key(
-            &self,
-            mech: &CK_MECHANISM,
-            wrapping_key: &Object,
-            key: &Object,
-            data: CK_BYTE_PTR,
-            data_len: CK_ULONG_PTR,
-            key_template: &Box<dyn ObjectFactory>,
-        ) -> KResult<()> {
-            if self.info.flags & CKF_WRAP != CKF_WRAP {
-                return err_rv!(CKR_MECHANISM_INVALID);
-            }
-    
-            AesOperation::wrap(
-                mech,
-                wrapping_key,
-                key_template.export_for_wrapping(key)?,
-                data,
-                data_len,
-            )
+        &self,
+        mech: &CK_MECHANISM,
+        wrapping_key: &Object,
+        key: &Object,
+        data: CK_BYTE_PTR,
+        data_len: CK_ULONG_PTR,
+        key_template: &Box<dyn ObjectFactory>,
+    ) -> KResult<()> {
+        if self.info.flags & CKF_WRAP != CKF_WRAP {
+            return err_rv!(CKR_MECHANISM_INVALID);
         }
 
+        AesOperation::wrap(
+            mech,
+            wrapping_key,
+            key_template.export_for_wrapping(key)?,
+            data,
+            data_len,
+        )
+    }
+
     fn unwrap_key(
-            &self,
-            mech: &CK_MECHANISM,
-            wrapping_key: &Object,
-            data: &[u8],
-            template: &[CK_ATTRIBUTE],
-            key_template: &Box<dyn ObjectFactory>,
-        ) -> KResult<Object> {
-            if self.info.flags & CKF_UNWRAP != CKF_UNWRAP {
-                return err_rv!(CKR_MECHANISM_INVALID);
-            }
-            let keydata = AesOperation::unwrap(mech, wrapping_key, data)?;
-            key_template.import_from_wrapped(keydata, template)
+        &self,
+        mech: &CK_MECHANISM,
+        wrapping_key: &Object,
+        data: &[u8],
+        template: &[CK_ATTRIBUTE],
+        key_template: &Box<dyn ObjectFactory>,
+    ) -> KResult<Object> {
+        if self.info.flags & CKF_UNWRAP != CKF_UNWRAP {
+            return err_rv!(CKR_MECHANISM_INVALID);
         }
+        let keydata = AesOperation::unwrap(mech, wrapping_key, data)?;
+        key_template.import_from_wrapped(keydata, template)
+    }
 }
 
 pub fn register(mechs: &mut Mechanisms, ot: &mut ObjectFactories) {
@@ -301,7 +307,6 @@ fn object_to_raw_key(key: &Object) -> KResult<AesKey> {
     Ok(AesKey { raw: val.clone() })
 }
 
-
 fn new_mechanism(flags: CK_FLAGS) -> Box<dyn Mechanism> {
     Box::new(AesMechanism {
         info: CK_MECHANISM_INFO {
@@ -312,11 +317,13 @@ fn new_mechanism(flags: CK_FLAGS) -> Box<dyn Mechanism> {
     })
 }
 
-
 #[derive(Debug)]
 struct AesParams {
     iv: Vec<u8>,
+
+    #[expect(dead_code)]
     aad: Vec<u8>,
+
     taglen: usize,
 }
 
@@ -326,7 +333,10 @@ struct AesOperation {
     key: AesKey,
     params: AesParams,
     finalized: bool,
+
+    #[expect(dead_code)]
     in_use: bool,
+
     finalbuf: Vec<u8>,
 }
 
@@ -338,11 +348,7 @@ impl Drop for AesOperation {
 
 impl AesOperation {
     fn register_mechanisms(mechs: &mut Mechanisms) {
-        for ckm in &[
-            CKM_AES_GCM,
-            CKM_AES_KEY_WRAP,
-            CKM_AES_KEY_WRAP_KWP,
-        ] {
+        for ckm in &[CKM_AES_GCM, CKM_AES_KEY_WRAP, CKM_AES_KEY_WRAP_KWP] {
             mechs.add_mechanism(
                 *ckm,
                 new_mechanism(
@@ -432,7 +438,7 @@ impl AesOperation {
             in_use: false,
             finalbuf: Vec::new(),
         })
-    } 
+    }
 
     fn wrap(
         _mech: &CK_MECHANISM,
@@ -448,10 +454,11 @@ impl AesOperation {
 
         let wrapped_key = match wrapping_key_bytes.len() {
             16 => {
-                let key_array: [u8; 16] = match wrapping_key_bytes.as_slice().try_into() {
-                    Ok(array) => array,
-                    Err(_) => return err_rv!(CKR_KEY_SIZE_RANGE),
-                };
+                let key_array: [u8; 16] =
+                    match wrapping_key_bytes.as_slice().try_into() {
+                        Ok(array) => array,
+                        Err(_) => return err_rv!(CKR_KEY_SIZE_RANGE),
+                    };
                 let kek = KekAes128::from(key_array);
 
                 if is_multiple_of_8 {
@@ -459,8 +466,7 @@ impl AesOperation {
                         Ok(wrapped) => wrapped,
                         Err(_) => return err_rv!(CKR_GENERAL_ERROR),
                     }
-                }
-                else {
+                } else {
                     match kek.wrap_with_padding_vec(&keydata) {
                         Ok(wrapped) => wrapped,
                         Err(_) => return err_rv!(CKR_GENERAL_ERROR),
@@ -468,10 +474,11 @@ impl AesOperation {
                 }
             }
             24 => {
-                let key_array: [u8; 24] = match wrapping_key_bytes.as_slice().try_into() {
-                    Ok(array) => array,
-                    Err(_) => return err_rv!(CKR_KEY_SIZE_RANGE),
-                };
+                let key_array: [u8; 24] =
+                    match wrapping_key_bytes.as_slice().try_into() {
+                        Ok(array) => array,
+                        Err(_) => return err_rv!(CKR_KEY_SIZE_RANGE),
+                    };
                 let kek = KekAes192::from(key_array);
 
                 if is_multiple_of_8 {
@@ -479,8 +486,7 @@ impl AesOperation {
                         Ok(wrapped) => wrapped,
                         Err(_) => return err_rv!(CKR_GENERAL_ERROR),
                     }
-                }
-                else {
+                } else {
                     match kek.wrap_with_padding_vec(&keydata) {
                         Ok(wrapped) => wrapped,
                         Err(_) => return err_rv!(CKR_GENERAL_ERROR),
@@ -488,10 +494,11 @@ impl AesOperation {
                 }
             }
             32 => {
-                let key_array: [u8; 32] = match wrapping_key_bytes.as_slice().try_into() {
-                    Ok(array) => array,
-                    Err(_) => return err_rv!(CKR_KEY_SIZE_RANGE),
-                };
+                let key_array: [u8; 32] =
+                    match wrapping_key_bytes.as_slice().try_into() {
+                        Ok(array) => array,
+                        Err(_) => return err_rv!(CKR_KEY_SIZE_RANGE),
+                    };
                 let kek = KekAes256::from(key_array);
 
                 if is_multiple_of_8 {
@@ -499,8 +506,7 @@ impl AesOperation {
                         Ok(wrapped) => wrapped,
                         Err(_) => return err_rv!(CKR_GENERAL_ERROR),
                     }
-                }
-                else {
+                } else {
                     match kek.wrap_with_padding_vec(&keydata) {
                         Ok(wrapped) => wrapped,
                         Err(_) => return err_rv!(CKR_GENERAL_ERROR),
@@ -526,15 +532,19 @@ impl AesOperation {
 
         // Copy the wrapped key to the output buffer
         unsafe {
-            std::ptr::copy_nonoverlapping(wrapped_key.as_ptr(), output, required_len);
+            std::ptr::copy_nonoverlapping(
+                wrapped_key.as_ptr(),
+                output,
+                required_len,
+            );
             *output_len = required_len as CK_ULONG;
         }
 
         Ok(())
     }
-    
+
     fn unwrap(
-        mech: &CK_MECHANISM,
+        _mech: &CK_MECHANISM,
         wrapping_key: &Object,
         data: &[u8],
     ) -> KResult<Vec<u8>> {
@@ -544,7 +554,8 @@ impl AesOperation {
         // Perform key unwrapping using the appropriate AES key size
         let unwrapped_key = match key_bytes.len() {
             16 => {
-                let key_array: [u8; 16] = match key_bytes.as_slice().try_into() {
+                let key_array: [u8; 16] = match key_bytes.as_slice().try_into()
+                {
                     Ok(array) => array,
                     Err(_) => return err_rv!(CKR_KEY_SIZE_RANGE),
                 };
@@ -554,12 +565,10 @@ impl AesOperation {
                 if data.len() % 8 == 0 && data.len() >= 16 {
                     match kek.unwrap_vec(data) {
                         Ok(unwrapped) => unwrapped,
-                        Err(_) => {
-                            match kek.unwrap_with_padding_vec(data) {
-                                Ok(unwrapped) => unwrapped,
-                                Err(_) => return err_rv!(CKR_WRAPPED_KEY_INVALID),
-                            }
-                        }
+                        Err(_) => match kek.unwrap_with_padding_vec(data) {
+                            Ok(unwrapped) => unwrapped,
+                            Err(_) => return err_rv!(CKR_WRAPPED_KEY_INVALID),
+                        },
                     }
                 } else {
                     match kek.unwrap_with_padding_vec(data) {
@@ -569,7 +578,8 @@ impl AesOperation {
                 }
             }
             24 => {
-                let key_array: [u8; 24] = match key_bytes.as_slice().try_into() {
+                let key_array: [u8; 24] = match key_bytes.as_slice().try_into()
+                {
                     Ok(array) => array,
                     Err(_) => return err_rv!(CKR_KEY_SIZE_RANGE),
                 };
@@ -579,12 +589,10 @@ impl AesOperation {
                 if data.len() % 8 == 0 && data.len() >= 16 {
                     match kek.unwrap_vec(data) {
                         Ok(unwrapped) => unwrapped,
-                        Err(_) => {
-                            match kek.unwrap_with_padding_vec(data) {
-                                Ok(unwrapped) => unwrapped,
-                                Err(_) => return err_rv!(CKR_WRAPPED_KEY_INVALID),
-                            }
-                        }
+                        Err(_) => match kek.unwrap_with_padding_vec(data) {
+                            Ok(unwrapped) => unwrapped,
+                            Err(_) => return err_rv!(CKR_WRAPPED_KEY_INVALID),
+                        },
                     }
                 } else {
                     match kek.unwrap_with_padding_vec(data) {
@@ -594,7 +602,8 @@ impl AesOperation {
                 }
             }
             32 => {
-                let key_array: [u8; 32] = match key_bytes.as_slice().try_into() {
+                let key_array: [u8; 32] = match key_bytes.as_slice().try_into()
+                {
                     Ok(array) => array,
                     Err(_) => return err_rv!(CKR_KEY_SIZE_RANGE),
                 };
@@ -608,7 +617,9 @@ impl AesOperation {
                             // Try to unwrap with padding
                             match kek.unwrap_with_padding_vec(data) {
                                 Ok(unwrapped) => unwrapped,
-                                Err(_) => return err_rv!(CKR_WRAPPED_KEY_INVALID),
+                                Err(_) => {
+                                    return err_rv!(CKR_WRAPPED_KEY_INVALID)
+                                }
                             }
                         }
                     }
@@ -643,8 +654,8 @@ impl Encryption for AesOperation {
         if cipher_len.is_null() {
             return err_rv!(CKR_ARGUMENTS_BAD);
         }
-        
-        let mut outlen = self.encryption_len(plain.len() as u64)?;
+
+        let outlen = self.encryption_len(plain.len() as u64)?;
 
         if cipher.is_null() {
             unsafe {
@@ -654,9 +665,8 @@ impl Encryption for AesOperation {
         }
 
         match self.mech {
-            #[cfg(False)]
             CKM_AES_GCM => {
-                todo!()
+                unreachable!()
             }
             _ => (),
         }
@@ -665,9 +675,6 @@ impl Encryption for AesOperation {
             unsafe { *cipher_len = outlen as CK_ULONG };
             return err_rv!(CKR_BUFFER_TOO_SMALL);
         }
-        
-        let mut plain_buf = plain.as_ptr();
-        let mut plain_len = plain.len();
 
         let key = self.key.raw.as_slice();
         let key: &Key<Aes256Gcm> = key.into();
@@ -675,21 +682,19 @@ impl Encryption for AesOperation {
         // Forcing to 12 bytes because of aes-gcm expects that
         let nonce = &self.params.iv[..12];
         let payload = plain;
-        let ciphertext = ctx.encrypt(nonce.into(),payload);
+        let ciphertext = ctx.encrypt(nonce.into(), payload);
         match ciphertext {
             Ok(ct) => {
                 let ct_buf = ct.as_ptr();
                 let ct_len = ct.len();
                 // Safe to dereference cipher_len as we checked it's not null
-                let out_len = unsafe{*cipher_len as usize};
+                let out_len = unsafe { *cipher_len as usize };
                 assert!(ct_len <= out_len);
-                unsafe 
-                {
-                std::ptr::copy_nonoverlapping(ct_buf, cipher, ct_len);
+                unsafe {
+                    std::ptr::copy_nonoverlapping(ct_buf, cipher, ct_len);
                 }
-
-            },
-            Err(e) => return err_rv!(CKR_GENERAL_ERROR),
+            }
+            Err(_) => return err_rv!(CKR_GENERAL_ERROR),
         }
 
         Ok(())
@@ -707,18 +712,17 @@ impl Encryption for AesOperation {
 
 impl Decryption for AesOperation {
     fn decrypt(
-            &mut self,
-            cipher: &[u8],
-            plain: CK_BYTE_PTR,
-            plain_len: CK_ULONG_PTR,
-        ) -> KResult<()> {
-
+        &mut self,
+        cipher: &[u8],
+        plain: CK_BYTE_PTR,
+        plain_len: CK_ULONG_PTR,
+    ) -> KResult<()> {
         if plain_len.is_null() {
             return err_rv!(CKR_ARGUMENTS_BAD);
         }
-        
-        let mut outlen = self.encryption_len(cipher.len() as u64)?;
-        
+
+        let outlen = self.encryption_len(cipher.len() as u64)?;
+
         if plain.is_null() {
             unsafe {
                 *plain_len = outlen as CK_ULONG;
@@ -727,9 +731,8 @@ impl Decryption for AesOperation {
         }
 
         match self.mech {
-            #[cfg(False)]
             CKM_AES_GCM => {
-                todo!()
+                unreachable!()
             }
             _ => (),
         }
@@ -738,9 +741,6 @@ impl Decryption for AesOperation {
             unsafe { *plain_len = outlen as CK_ULONG };
             return err_rv!(CKR_BUFFER_TOO_SMALL);
         }
-        
-        let mut cipher_buf = cipher.as_ptr();
-        let mut cipher_len = cipher.len();
 
         let key = self.key.raw.as_slice();
         let key: &Key<Aes256Gcm> = key.into();
@@ -748,25 +748,23 @@ impl Decryption for AesOperation {
         // Forcing to 12 bytes because of aes-gcm expects that
         let nonce = &self.params.iv[..12];
         let payload = cipher;
-        let ciphertext = ctx.encrypt(nonce.into(),payload);
+        let ciphertext = ctx.encrypt(nonce.into(), payload);
         match ciphertext {
             Ok(ct) => {
                 let ct_buf = ct.as_ptr();
                 let ct_len = ct.len();
                 // Safe to dereference cipher_len as we checked it's not null
-                let out_len = unsafe{*plain_len as usize};
+                let out_len = unsafe { *plain_len as usize };
                 assert!(ct_len <= out_len);
-                unsafe 
-                {
-                std::ptr::copy_nonoverlapping(ct_buf, plain, ct_len);
+                unsafe {
+                    std::ptr::copy_nonoverlapping(ct_buf, plain, ct_len);
                 }
-
-            },
-            Err(e) => todo!("return error"),
+            }
+            Err(e) => todo!("return error {:?}", e),
         }
 
         Ok(())
-        }
+    }
 
     fn decryption_len(&self, data_len: CK_ULONG) -> KResult<usize> {
         let len: usize = match self.mech {

@@ -1,5 +1,7 @@
 // Copyright 2023 Simo Sorce
 // See LICENSE.txt file for terms
+#![allow(clippy::all)]
+#![expect(dead_code)]
 
 use bitflags::bitflags;
 use std::collections::HashMap;

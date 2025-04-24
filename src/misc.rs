@@ -1,5 +1,8 @@
 // Copyright 2024 Simo Sorce
 // See LICENSE.txt file for terms
+#![allow(clippy::all)]
+#![expect(dead_code)]
+#![allow(unused_imports)]
 
 /* misc utilities that do not really belong in any module */
 use super::attribute;
@@ -19,7 +22,7 @@ macro_rules! bytes_to_vec {
     ($ptr:expr, $len:expr) => {{
         let ptr = $ptr as *const u8;
         let size = $len as usize;
-        if ptr == std::ptr::null_mut() || size == 0 {
+        if ptr.is_null() || size == 0 {
             Vec::new()
         } else {
             let mut v = Vec::<u8>::with_capacity(size);
@@ -90,6 +93,7 @@ macro_rules! sizeof {
 macro_rules! bytes_to_slice {
     ($ptr: expr, $len:expr, $typ:ty) => {
         if $len > 0 {
+            #[allow(clippy::macro_metavars_in_unsafe)]
             unsafe {
                 std::slice::from_raw_parts($ptr as *const $typ, $len as usize)
             }

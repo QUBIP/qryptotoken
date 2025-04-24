@@ -1,6 +1,9 @@
 // Copyright 2024 Simo Sorce
 // See LICENSE.txt file for terms
 
+#![allow(unused_macros)]
+#![allow(dead_code)]
+
 use super::tests;
 use tests::*;
 

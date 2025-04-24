@@ -1,5 +1,6 @@
 // Copyright 2023 Simo Sorce
 // See LICENSE.txt file for terms
+#![allow(unused_imports)]
 
 use std::vec::Vec;
 

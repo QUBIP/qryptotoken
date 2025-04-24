@@ -1,3 +1,5 @@
+// Copyright (C) 2023-2025 Tampere University
+// See LICENSE.txt file for terms
 use pbkdf2::pbkdf2_hmac;
 use sha1::Sha1;
 use sha2::{Sha224, Sha256, Sha384, Sha512};
@@ -9,12 +11,12 @@ use crate::mechanism;
 use crate::object;
 use crate::{cast_params, err_rv};
 
+use crate::bytes_to_vec;
 use attribute::{from_bool, from_bytes, from_ulong};
-use error::{KError, KResult};
+use error::KResult;
 use interface::*;
 use mechanism::*;
 use object::{Object, ObjectFactories};
-use crate::bytes_to_vec;
 
 pub fn register(mechs: &mut Mechanisms, _: &mut ObjectFactories) {
     PBKDF2Mechanism::register_mechanisms(mechs);
@@ -105,7 +107,8 @@ impl Mechanism for PBKDF2Mechanism {
             iter: params.iterations as u32,
         };
 
-        let factory = objfactories.get_obj_factory_from_key_template(template)?;
+        let factory =
+            objfactories.get_obj_factory_from_key_template(template)?;
 
         let keylen = match template.iter().find(|x| x.type_ == CKA_VALUE_LEN) {
             Some(a) => a.to_ulong()? as usize,
@@ -136,12 +139,37 @@ impl PBKDF2 {
         let mut dkm = vec![0u8; dklen];
 
         match self.prf {
-            "sha1"      => pbkdf2_hmac::<Sha1>(&self.pass.get_attr_as_bytes(CKA_VALUE)?, &self.salt, self.iter, &mut dkm),
-            "sha224"    => pbkdf2_hmac::<Sha224>(&self.pass.get_attr_as_bytes(CKA_VALUE)?, &self.salt, self.iter, &mut dkm),
-            "sha256"    => pbkdf2_hmac::<Sha256>(&self.pass.get_attr_as_bytes(CKA_VALUE)?, &self.salt, self.iter, &mut dkm),
-            "sha384"    => pbkdf2_hmac::<Sha384>(&self.pass.get_attr_as_bytes(CKA_VALUE)?, &self.salt, self.iter, &mut dkm),
-            "sha512"    => pbkdf2_hmac::<Sha512>(&self.pass.get_attr_as_bytes(CKA_VALUE)?, &self.salt, self.iter, &mut dkm),
-            _           => return err_rv!(CKR_MECHANISM_PARAM_INVALID),
+            "sha1" => pbkdf2_hmac::<Sha1>(
+                &self.pass.get_attr_as_bytes(CKA_VALUE)?,
+                &self.salt,
+                self.iter,
+                &mut dkm,
+            ),
+            "sha224" => pbkdf2_hmac::<Sha224>(
+                &self.pass.get_attr_as_bytes(CKA_VALUE)?,
+                &self.salt,
+                self.iter,
+                &mut dkm,
+            ),
+            "sha256" => pbkdf2_hmac::<Sha256>(
+                &self.pass.get_attr_as_bytes(CKA_VALUE)?,
+                &self.salt,
+                self.iter,
+                &mut dkm,
+            ),
+            "sha384" => pbkdf2_hmac::<Sha384>(
+                &self.pass.get_attr_as_bytes(CKA_VALUE)?,
+                &self.salt,
+                self.iter,
+                &mut dkm,
+            ),
+            "sha512" => pbkdf2_hmac::<Sha512>(
+                &self.pass.get_attr_as_bytes(CKA_VALUE)?,
+                &self.salt,
+                self.iter,
+                &mut dkm,
+            ),
+            _ => return err_rv!(CKR_MECHANISM_PARAM_INVALID),
         }
 
         Ok(dkm)

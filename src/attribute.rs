@@ -1,5 +1,7 @@
 // Copyright 2023 Simo Sorce
 // See LICENSE.txt file for terms
+#![allow(clippy::all)]
+#![allow(unused_imports)]
 
 use super::error;
 use super::interface;

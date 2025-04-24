@@ -1,26 +1,33 @@
-use crate::attribute::{from_bool, from_bytes, from_ulong};
+// Copyright (C) 2023-2025 Tampere University
+// See LICENSE.txt file for terms
+use crate::attribute::from_bytes;
+use crate::error::CkRvError;
 use crate::interface::*;
-use crate::object::{Object, ObjectFactories};
-use crate::storage::{self, Storage};
+use crate::object::Object;
 use crate::token::Token;
-use crate::{err_rv, KError, KResult};
-use libcrux::kem::*;
-use crate::error;
-
+use crate::{KError, KResult};
+use libcrux::kem::{Algorithm, Ct, PrivateKey, PublicKey};
+use rand::rngs::OsRng;
 
 pub fn validate_params(params: CK_NSS_KEM_PARAMETER_SET_TYPE) -> KResult<()> {
-    if params == 0 {
-        return Err(KError::RvError(error::CkRvError { rv: CKR_MECHANISM_INVALID }))
-    } else {
-        match params {
-            CKP_NSS_ML_KEM_768 => return Ok(()),
-            _ =>  return Err(KError::RvError(error::CkRvError { rv: CKR_MECHANISM_PARAM_INVALID }))
-
-        };
+    match params {
+        CKP_NSS_ML_KEM_768 => Ok(()),
+        /*
+         * TODO(Nouman): what is the rationale behind returning different errors
+         *               for 0 or other unhandled values?
+         *               I am not saying it is wrong, but if there is a reason
+         *               we should at least document it in a comment
+         */
+        0 => Err(KError::RvError(CkRvError {
+            rv: CKR_MECHANISM_INVALID,
+        })),
+        _ => Err(KError::RvError(CkRvError {
+            rv: CKR_MECHANISM_PARAM_INVALID,
+        })),
     }
 }
 
-#[cfg(any())]
+//#[cfg(any())]
 pub fn encapsulate(
     public_key: &Object,
     data: CK_BYTE_PTR,
@@ -64,7 +71,7 @@ pub fn decapsulate(
     data_len: CK_ULONG,
     template: CK_ATTRIBUTE_PTR,
     attribute_count: CK_ULONG,
-    key: CK_OBJECT_HANDLE_PTR,
+    _key: CK_OBJECT_HANDLE_PTR,
     token: &mut Token,
 ) -> CK_RV {
     let sk_bytes = private_key
