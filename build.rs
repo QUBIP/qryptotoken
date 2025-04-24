@@ -141,6 +141,8 @@ fn main() {
     /* PKCS11 Headers */
     let pkcs11_header = "pkcs11_headers/3.1/pkcs11.h";
     println!("cargo::rerun-if-changed={}", pkcs11_header);
+    let nss_pkcs11_header = "pkcs11_headers/nss_vendor_extension.h";
+    println!("cargo::rerun-if-changed={}", nss_pkcs11_header);
     bindgen::Builder::default()
         .header(pkcs11_header)
         .derive_default(true)
