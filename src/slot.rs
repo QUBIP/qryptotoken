@@ -15,9 +15,9 @@ use error::{KError, KResult};
 use interface::*;
 
 static SLOT_DESCRIPTION: [CK_UTF8CHAR; 64usize] =
-    *b"Kryoptic Slot                                                   ";
+    *b"Qryoptic Slot                                                   ";
 static MANUFACTURER_ID: [CK_UTF8CHAR; 32usize] =
-    *b"Kryoptic                        ";
+    *b"QUBIP Project                   ";
 
 #[derive(Debug)]
 pub struct Slot {

@@ -408,7 +408,7 @@ pub const DEFAULT_CONF_NAME: &str = "token.sql";
 fn find_conf() -> KResult<String> {
     /* First check for our own env var,
      * this has the highest precedence */
-    match env::var("KRYOPTIC_CONF") {
+    match env::var("QRYOPTIC_CONF") {
         Ok(var) => return Ok(var),
         Err(_) => (),
     }
@@ -416,12 +416,12 @@ fn find_conf() -> KResult<String> {
      * then fallback to use $HOME/.local/share, if that is also not
      * available see if we have access to a system store */
     let datafile = match env::var("XDG_DATA_HOME") {
-        Ok(xdg) => format!("{}/kryoptic/{}", xdg, DEFAULT_CONF_NAME),
+        Ok(xdg) => format!("{}/qryoptic/{}", xdg, DEFAULT_CONF_NAME),
         Err(_) => match env::var("HOME") {
             Ok(home) => {
-                format!("{}/.local/share/kryoptic/{}", home, DEFAULT_CONF_NAME)
+                format!("{}/.local/share/qryoptic/{}", home, DEFAULT_CONF_NAME)
             }
-            Err(_) => format!("/var/kryoptic/public/{}", DEFAULT_CONF_NAME),
+            Err(_) => format!("/var/qryoptic/public/{}", DEFAULT_CONF_NAME),
         },
     };
     if Path::new(&datafile).is_file() {
@@ -2331,10 +2331,10 @@ extern "C" fn fn_get_token_info(
 
 static IMPLEMENTED_VERSION: CK_VERSION = CK_VERSION { major: 3, minor: 0 };
 static MANUFACTURER_ID: [CK_UTF8CHAR; 32usize] =
-    *b"Kryoptic                        ";
+    *b"QUBIP Project                   ";
 static LIBRARY_DESCRIPTION: [CK_UTF8CHAR; 32usize] =
-    *b"Kryoptic PKCS11 Module          ";
-static LIBRARY_VERSION: CK_VERSION = CK_VERSION { major: 0, minor: 0 };
+    *b"Qryoptic PKCS11 Module          ";
+static LIBRARY_VERSION: CK_VERSION = CK_VERSION { major: 0, minor: 1 };
 
 static MODULE_INFO: CK_INFO = CK_INFO {
     cryptokiVersion: IMPLEMENTED_VERSION,

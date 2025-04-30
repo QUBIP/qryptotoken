@@ -78,18 +78,18 @@ Run the following commands to create the default directory and initialize an emp
 This will be properly initialized in the next step.
 
 ```sh
-mkdir -p ~/.local/share/kryoptic
-touch ~/.local/share/kryoptic/token.sql
+mkdir -p ~/.local/share/qryoptic
+touch ~/.local/share/qryoptic/token.sql
 ```
 
 > [!IMPORTANT]
-> By default, the `qryoptic` module will look for `token.sql` in `~/.local/share/kryoptic`,
+> By default, the `qryoptic` module will look for `token.sql` in `~/.local/share/qryoptic`,
 > but this path is influenced by some environment variables, including those tuning XDG preferences.
 
 Once the token file is created, you can initialize the module by running the following command:
 
 ```sh
-pkcs11-tool --module ./target/debug/libkryoptic_pkcs11.so --init-token --slot 0 --label "qryoptic_module" --so-pin 1234 --init-pin --pin 1234
+pkcs11-tool --module ./target/debug/libqryoptic_pkcs11.so --init-token --slot 0 --label "qryoptic_module" --so-pin 1234 --init-pin --pin 1234
 ```
 
 If everything works correctly, you should see:
@@ -108,7 +108,7 @@ pkcs11-tool --help
 For example:
 
 ```sh
-pkcs11-tool --module ./target/debug/libkryoptic_pkcs11.so --show-info
+pkcs11-tool --module ./target/debug/libqryoptic_pkcs11.so --show-info
 ```
 
 ## Next Steps: Set Up Firefox and Test the Module

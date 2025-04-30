@@ -60,9 +60,9 @@ use super::fips;
 #[cfg(feature = "fips")]
 const TOKEN_LABEL: &str = "Kryoptic FIPS Token";
 #[cfg(not(feature = "fips"))]
-const TOKEN_LABEL: &str = "Kryoptic Soft Token";
+const TOKEN_LABEL: &str = "Qryoptic Soft Token";
 
-const MANUFACTURER_ID: &str = "Kryoptic Project";
+const MANUFACTURER_ID: &str = "QUBIP Project";
 
 #[cfg(feature = "fips")]
 const TOKEN_MODEL: &str = "FIPS-140-3 v1";

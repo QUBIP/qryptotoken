@@ -22,7 +22,7 @@ This guide outlines how to load and interact with the `qryoptic` PKCS#11 module 
 
 Before proceeding, ensure that:
 
-- You have a build of the `qryoptic` module (`libkryoptic_pkcs11.so`), compiled following [our instructions](./build-qryoptic.md).
+- You have a build of the `qryoptic` module (`libqryoptic_pkcs11.so`), compiled following [our instructions](./build-qryoptic.md).
 - You already initialized once a `qryoptic` token store, as explained in [Module Initialization](./build-qryoptic.md#module-initialization).
 - You have a QUBIP build of Firefox, either you [built it from source](./build-firefox-from-source.md)
   or you [have installed a pre-built flatpak bundle](./installing-flatpak-firefox.md).
@@ -91,7 +91,7 @@ Once Firefox is running, follow these steps to load the `qryoptic` PKCS#11 modul
 
    `./target/debug/`
 
-   Select the file with the `.so` extension (e.g., `libkryoptic_pkcs11.so`).
+   Select the file with the `.so` extension (e.g., `libqryoptic_pkcs11.so`).
 
    ![Step 6](./images/test-with-firefox-06.png)
 

@@ -120,11 +120,11 @@ flatpak install firefox-try firefox
 > [!IMPORTANT]
 > Before running Firefox, ensure that the qryoptic token file exists inside the Flatpak sandbox directory.
 >
-> If you have already initialized the token at $HOME/.local/share/kryoptic/token.sql, copy it into the Flatpak-specific directory:
+> If you have already initialized the token at $HOME/.local/share/qryoptic/token.sql, copy it into the Flatpak-specific directory:
 >
 > ```sh
-> mkdir -p $HOME/.var/app/org.mozilla.firefox/data/kryoptic
-> cp $HOME/.local/share/kryoptic/token.sql $HOME/.var/app/org.mozilla.firefox/data/kryoptic/token.sql
+> mkdir -p $HOME/.var/app/org.mozilla.firefox/data/qryoptic
+> cp $HOME/.local/share/qryoptic/token.sql $HOME/.var/app/org.mozilla.firefox/data/qryoptic/token.sql
 > ```
 >
 > This ensures that Firefox running inside Flatpak can access the required token file correctly.

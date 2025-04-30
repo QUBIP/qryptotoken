@@ -45,7 +45,7 @@ fn test_token_env(name: &str) {
             Some(init_fn) => {
                 let mut args = testtokn.make_empty_init_args();
                 let args_ptr = &mut args as *mut CK_C_INITIALIZE_ARGS;
-                env::set_var("KRYOPTIC_CONF", testtokn.make_init_string());
+                env::set_var("QRYOPTIC_CONF", testtokn.make_init_string());
                 let ret = init_fn(args_ptr as *mut std::ffi::c_void);
                 assert_eq!(ret, CKR_OK)
             }
@@ -68,7 +68,7 @@ fn test_token_null_args(name: &str) {
         let list: CK_FUNCTION_LIST = *plist;
         match list.C_Initialize {
             Some(init_fn) => {
-                env::set_var("KRYOPTIC_CONF", testtokn.make_init_string());
+                env::set_var("QRYOPTIC_CONF", testtokn.make_init_string());
                 let ret = init_fn(std::ptr::null_mut());
                 assert_eq!(ret, CKR_OK)
             }
@@ -98,7 +98,7 @@ fn test_token_datadir() {
             Some(init_fn) => {
                 let mut args = testtokn.make_empty_init_args();
                 let args_ptr = &mut args as *mut CK_C_INITIALIZE_ARGS;
-                env::remove_var("KRYOPTIC_CONF");
+                env::remove_var("QRYOPTIC_CONF");
                 env::set_var("XDG_DATA_HOME", "test");
                 let ret = init_fn(args_ptr as *mut std::ffi::c_void);
                 assert_eq!(ret, CKR_OK)
