@@ -436,12 +436,24 @@ pub const QRYOPTIC_TARGET: &'static str = "qubip";
 
 #[cfg(feature = "env_logger")]
 fn inner_try_init_logging() -> Result<(), String> {
+    let is_test = {
+        #[cfg(not(test))]
+        {
+            false
+        }
+
+        #[cfg(test)]
+        {
+            true
+        }
+    };
     let r = env_logger::Builder::from_default_env()
         //.filter_level(log::LevelFilter::Debug)
         .format_timestamp(None)
         .format_module_path(true)
         .format_target(false)
         .format_source_path(true)
+        .is_test(is_test)
         .try_init();
     if r.is_err() {
         warn!("(NON FATAL) Failed to initialize logger: {r:?}\nPossibly another component already initialized the logging subsystem");
