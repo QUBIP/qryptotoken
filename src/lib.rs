@@ -427,6 +427,7 @@ fn find_conf() -> KResult<String> {
     if Path::new(&datafile).is_file() {
         Ok(datafile)
     } else {
+        error!("Cannot find {datafile:}");
         err_rv!(CKR_ARGUMENTS_BAD)
     }
 }
