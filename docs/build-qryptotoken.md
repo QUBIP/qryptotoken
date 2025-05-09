@@ -1,11 +1,11 @@
-# Qryoptic: Build, Initialize, and Test
+# qryptotoken: Build, Initialize, and Test
 
-This guide walks you through setting up, building, and initializing the `qryoptic` PKCS#11 module.
+This guide walks you through setting up, building, and initializing the `qryptotoken` PKCS#11 module.
 
 <details open="open">
 <summary>Table of Contents</summary>
 
-- [Qryoptic: Build, Initialize, and Test](#qryoptic-build-initialize-and-test)
+- [qryptotoken: Build, Initialize, and Test](#qryptotoken-build-initialize-and-test)
   - [Prerequisites](#prerequisites)
   - [Build](#build)
   - [Module Initialization](#module-initialization)
@@ -47,8 +47,8 @@ Before building the project, make sure you have the following system packages in
 Start by cloning the repository and after that move to the cloned folder:
 
 ```sh
-git clone git@github.com:qubip/qryoptic.git
-cd qryoptic
+git clone git@github.com:qubip/qryptotoken.git
+cd qryptotoken
 ```
 
 Once you clone the repository, you can build the project using:
@@ -78,18 +78,18 @@ Run the following commands to create the default directory and initialize an emp
 This will be properly initialized in the next step.
 
 ```sh
-mkdir -p ~/.local/share/qryoptic
-touch ~/.local/share/qryoptic/token.sql
+mkdir -p ~/.local/share/qryptotoken
+touch ~/.local/share/qryptotoken/token.sql
 ```
 
 > [!IMPORTANT]
-> By default, the `qryoptic` module will look for `token.sql` in `~/.local/share/qryoptic`,
+> By default, the `qryptotoken` module will look for `token.sql` in `~/.local/share/qryptotoken`,
 > but this path is influenced by some environment variables, including those tuning XDG preferences.
 
 Once the token file is created, you can initialize the module by running the following command:
 
 ```sh
-pkcs11-tool --module ./target/debug/libqryoptic_pkcs11.so --init-token --slot 0 --label "qryoptic_module" --so-pin 1234 --init-pin --pin 1234
+pkcs11-tool --module ./target/debug/libqryptotoken_pkcs11.so --init-token --slot 0 --label "qryptotoken_module" --so-pin 1234 --init-pin --pin 1234
 ```
 
 If everything works correctly, you should see:
@@ -108,7 +108,7 @@ pkcs11-tool --help
 For example:
 
 ```sh
-pkcs11-tool --module ./target/debug/libqryoptic_pkcs11.so --show-info
+pkcs11-tool --module ./target/debug/libqryptotoken_pkcs11.so --show-info
 ```
 
 ## Next Steps: Set Up Firefox and Test the Module
@@ -120,6 +120,6 @@ You have two possible options to proceed:
 - [Build Firefox from source](./build-firefox-from-source.md): Ideal if you are looking for full control and debugging options.
 - [Flatpak-based Firefox image](./installing-flatpak-firefox.md): Quicker to set up and testing.
 
-Once Firefox is set up, follow the [testing guide](./test-with-firefox.md) to load the `qryoptic` module and test it.
+Once Firefox is set up, follow the [testing guide](./test-with-firefox.md) to load the `qryptotoken` module and test it.
 
 ---

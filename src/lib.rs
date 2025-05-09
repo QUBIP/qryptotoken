@@ -120,7 +120,7 @@ macro_rules! res_or_ret {
         match $ret {
             Ok(x) => x,
             Err(e) => {
-                crate::error!(target: crate::QRYOPTIC_TARGET, "Failed with {e:?}");
+                crate::error!(target: crate::QRYPTOTOKEN_TARGET, "Failed with {e:?}");
                 return err_to_rv!(e)
             },
         }
@@ -408,7 +408,7 @@ pub const DEFAULT_CONF_NAME: &str = "token.sql";
 fn find_conf() -> KResult<String> {
     /* First check for our own env var,
      * this has the highest precedence */
-    match env::var("QRYOPTIC_CONF") {
+    match env::var("QRYPTOTOKEN_CONF") {
         Ok(var) => return Ok(var),
         Err(_) => (),
     }
@@ -416,12 +416,15 @@ fn find_conf() -> KResult<String> {
      * then fallback to use $HOME/.local/share, if that is also not
      * available see if we have access to a system store */
     let datafile = match env::var("XDG_DATA_HOME") {
-        Ok(xdg) => format!("{}/qryoptic/{}", xdg, DEFAULT_CONF_NAME),
+        Ok(xdg) => format!("{}/qryptotoken/{}", xdg, DEFAULT_CONF_NAME),
         Err(_) => match env::var("HOME") {
             Ok(home) => {
-                format!("{}/.local/share/qryoptic/{}", home, DEFAULT_CONF_NAME)
+                format!(
+                    "{}/.local/share/qryptotoken/{}",
+                    home, DEFAULT_CONF_NAME
+                )
             }
-            Err(_) => format!("/var/qryoptic/public/{}", DEFAULT_CONF_NAME),
+            Err(_) => format!("/var/qryptotoken/public/{}", DEFAULT_CONF_NAME),
         },
     };
     if Path::new(&datafile).is_file() {
@@ -432,7 +435,7 @@ fn find_conf() -> KResult<String> {
     }
 }
 
-pub const QRYOPTIC_TARGET: &'static str = "qubip";
+pub const QRYPTOTOKEN_TARGET: &'static str = "qubip";
 
 #[cfg(feature = "env_logger")]
 fn inner_try_init_logging() -> Result<(), String> {
@@ -482,7 +485,7 @@ extern "C" fn fn_initialize(_init_args: CK_VOID_PTR) -> CK_RV {
 
     #[cfg(feature = "env_logger")]
     try_init_logging().expect("Failed initializing logger subsystem");
-    info!(target: crate::QRYOPTIC_TARGET, "🦀 Loaded");
+    info!(target: crate::QRYPTOTOKEN_TARGET, "🦀 Loaded");
 
     if _init_args.is_null() {
         conf = res_or_ret!(find_conf());
@@ -830,33 +833,33 @@ extern "C" fn fn_create_object(
     count: CK_ULONG,
     object_handle: CK_OBJECT_HANDLE_PTR,
 ) -> CK_RV {
-    trace!(target: crate::QRYOPTIC_TARGET, "🦀 fn_create_object called");
+    trace!(target: crate::QRYPTOTOKEN_TARGET, "🦀 fn_create_object called");
     let rstate = global_rlock!(STATE);
     let session = res_or_ret!(rstate.get_session(s_handle));
     let tmpl: &mut [CK_ATTRIBUTE] =
         unsafe { std::slice::from_raw_parts_mut(template, count as usize) };
-    trace!(target: crate::QRYOPTIC_TARGET, "🦀 tmpl: {tmpl:?}");
+    trace!(target: crate::QRYPTOTOKEN_TARGET, "🦀 tmpl: {tmpl:?}");
     if !session.is_writable() {
         fail_if_cka_token_true!(&*tmpl);
     }
     let slot_id = session.get_slot_id();
     let mut token = res_or_ret!(rstate.get_token_from_slot_mut(slot_id));
-    //trace!(target: crate::QRYOPTIC_TARGET, "🦀 token: {token:#?}");
+    //trace!(target: crate::QRYPTOTOKEN_TARGET, "🦀 token: {token:#?}");
 
     let oh = match token.create_object(s_handle, tmpl) {
         Ok(h) => h,
         Err(e) => {
-            crate::error!(target: crate::QRYOPTIC_TARGET, "🦀 Failed to create object: {e:?}");
+            crate::error!(target: crate::QRYPTOTOKEN_TARGET, "🦀 Failed to create object: {e:?}");
             return err_to_rv!(e);
         }
     };
 
-    crate::trace!(target: crate::QRYOPTIC_TARGET, "🦀 next we write to memory!");
+    crate::trace!(target: crate::QRYPTOTOKEN_TARGET, "🦀 next we write to memory!");
     unsafe {
         core::ptr::write(object_handle as *mut _, oh);
     }
 
-    crate::trace!(target: crate::QRYOPTIC_TARGET, "🦀 fn_create_object DONE 👍");
+    crate::trace!(target: crate::QRYPTOTOKEN_TARGET, "🦀 fn_create_object DONE 👍");
     CKR_OK
 }
 
@@ -956,25 +959,25 @@ extern "C" fn fn_find_objects_init(
     template: CK_ATTRIBUTE_PTR,
     count: CK_ULONG,
 ) -> CK_RV {
-    trace!(target: crate::QRYOPTIC_TARGET, "🦀 fn_find_objects_init({s_handle:?}, {template:?}, {count:?}) called");
-    trace!(target: crate::QRYOPTIC_TARGET, "🦀 getting rstate");
+    trace!(target: crate::QRYPTOTOKEN_TARGET, "🦀 fn_find_objects_init({s_handle:?}, {template:?}, {count:?}) called");
+    trace!(target: crate::QRYPTOTOKEN_TARGET, "🦀 getting rstate");
     let rstate = global_rlock!(STATE);
-    trace!(target: crate::QRYOPTIC_TARGET, "🦀 getting session");
+    trace!(target: crate::QRYPTOTOKEN_TARGET, "🦀 getting session");
     let mut session = res_or_ret!(rstate.get_session_mut(s_handle));
-    trace!(target: crate::QRYOPTIC_TARGET, "🦀 getting slot_id");
+    trace!(target: crate::QRYPTOTOKEN_TARGET, "🦀 getting slot_id");
     let slot_id = session.get_slot_id();
-    trace!(target: crate::QRYOPTIC_TARGET, "🦀 getting token");
+    trace!(target: crate::QRYPTOTOKEN_TARGET, "🦀 getting token");
     let mut token = res_or_ret!(rstate.get_token_from_slot_mut(slot_id));
     let tmpl: &[CK_ATTRIBUTE] = if template.is_null() || !template.is_aligned()
     {
-        warn!(target: crate::QRYOPTIC_TARGET, "Invalid pTemplate");
+        warn!(target: crate::QRYPTOTOKEN_TARGET, "Invalid pTemplate");
         //return CKR_ARGUMENTS_BAD;
         &[]
     } else {
-        trace!(target: crate::QRYOPTIC_TARGET, "🦀 getting tmpl");
+        trace!(target: crate::QRYPTOTOKEN_TARGET, "🦀 getting tmpl");
         unsafe { std::slice::from_raw_parts(template, count as usize) }
     };
-    trace!(target: crate::QRYOPTIC_TARGET, "🦀 calling new_search_operation");
+    trace!(target: crate::QRYPTOTOKEN_TARGET, "🦀 calling new_search_operation");
     ret_to_rv!(session.new_search_operation(&mut token, tmpl))
 }
 
@@ -984,7 +987,7 @@ extern "C" fn fn_find_objects(
     max_object_count: CK_ULONG,
     pul_object_count: CK_ULONG_PTR,
 ) -> CK_RV {
-    trace!(target: crate::QRYOPTIC_TARGET, "🦀 fn_find_objects called");
+    trace!(target: crate::QRYPTOTOKEN_TARGET, "🦀 fn_find_objects called");
     if ph_object.is_null() {
         return CKR_ARGUMENTS_BAD;
     }
@@ -1012,7 +1015,7 @@ extern "C" fn fn_find_objects(
     CKR_OK
 }
 extern "C" fn fn_find_objects_final(s_handle: CK_SESSION_HANDLE) -> CK_RV {
-    trace!(target: crate::QRYOPTIC_TARGET, "🦀 fn_find_objects_final called");
+    trace!(target: crate::QRYPTOTOKEN_TARGET, "🦀 fn_find_objects_final called");
     let rstate = global_rlock!(STATE);
     let mut session = res_or_ret!(rstate.get_session_mut(s_handle));
     match res_or_ret!(session.get_operation_mut()) {
@@ -1596,30 +1599,30 @@ extern "C" fn fn_verify_init(
     mechptr: CK_MECHANISM_PTR,
     key_handle: CK_OBJECT_HANDLE,
 ) -> CK_RV {
-    trace!(target: crate::QRYOPTIC_TARGET, "🦀 fn_verify_init called");
+    trace!(target: crate::QRYPTOTOKEN_TARGET, "🦀 fn_verify_init called");
     let rstate = global_rlock!(STATE);
     let mut session = res_or_ret!(rstate.get_session_mut(s_handle));
     check_op_empty_or_fail!(session; Verify; mechptr);
     let mechanism: &CK_MECHANISM = unsafe { &*mechptr };
     let slot_id = session.get_slot_id();
     let mut token = res_or_ret!(rstate.get_token_from_slot_mut(slot_id));
-    trace!(target: crate::QRYOPTIC_TARGET, "About to retrieve object by handle: {key_handle:?}");
+    trace!(target: crate::QRYPTOTOKEN_TARGET, "About to retrieve object by handle: {key_handle:?}");
     let key = res_or_ret!(token.get_object_by_handle(key_handle));
-    trace!(target: crate::QRYOPTIC_TARGET, "🔑 key: {key:?}");
+    trace!(target: crate::QRYPTOTOKEN_TARGET, "🔑 key: {key:?}");
     let keyref = &key;
-    trace!(target: crate::QRYOPTIC_TARGET, "🔑 keyref: {keyref:p}");
-    trace!(target: crate::QRYOPTIC_TARGET, "🔍 About to check allowed mechs with keyref: {keyref:p}");
+    trace!(target: crate::QRYPTOTOKEN_TARGET, "🔑 keyref: {keyref:p}");
+    trace!(target: crate::QRYPTOTOKEN_TARGET, "🔍 About to check allowed mechs with keyref: {keyref:p}");
     ok_or_ret!(check_allowed_mechs(mechanism, keyref));
-    trace!(target: crate::QRYOPTIC_TARGET, "✅ check_allowed_mechs passed. keyref at: {keyref:p}");
+    trace!(target: crate::QRYPTOTOKEN_TARGET, "✅ check_allowed_mechs passed. keyref at: {keyref:p}");
 
-    trace!(target: crate::QRYOPTIC_TARGET, "🔍 About to retrieve mechanism {:#X}", mechanism.mechanism);
+    trace!(target: crate::QRYPTOTOKEN_TARGET, "🔍 About to retrieve mechanism {:#X}", mechanism.mechanism);
     let mech = res_or_ret!(token.get_mechanisms().get(mechanism.mechanism));
-    debug!(target: crate::QRYOPTIC_TARGET, "🔗 Fetched mechanism: {mech:?}");
+    debug!(target: crate::QRYPTOTOKEN_TARGET, "🔗 Fetched mechanism: {mech:?}");
 
     if (mech.info().flags & CKF_VERIFY) == CKF_VERIFY {
-        trace!(target: crate::QRYOPTIC_TARGET, "🔗 Calling verify_new({mechanism:p}, {keyref:p})");
+        trace!(target: crate::QRYPTOTOKEN_TARGET, "🔗 Calling verify_new({mechanism:p}, {keyref:p})");
         let operation = res_or_ret!(mech.verify_new(mechanism, keyref));
-        trace!(target: crate::QRYOPTIC_TARGET, "🔗 verify_new did not fail!!!!!!!!!!!!!!!!!!!!!!");
+        trace!(target: crate::QRYPTOTOKEN_TARGET, "🔗 verify_new did not fail!!!!!!!!!!!!!!!!!!!!!!");
         session.set_operation(Operation::Verify(operation), false);
         CKR_OK
     } else {
@@ -2349,7 +2352,7 @@ static IMPLEMENTED_VERSION: CK_VERSION = CK_VERSION { major: 3, minor: 0 };
 static MANUFACTURER_ID: [CK_UTF8CHAR; 32usize] =
     *b"QUBIP Project                   ";
 static LIBRARY_DESCRIPTION: [CK_UTF8CHAR; 32usize] =
-    *b"Qryoptic PKCS11 Module          ";
+    *b"qryptotoken PKCS11 Module       ";
 static LIBRARY_VERSION: CK_VERSION = CK_VERSION { major: 0, minor: 1 };
 
 static MODULE_INFO: CK_INFO = CK_INFO {

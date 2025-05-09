@@ -5,7 +5,7 @@
 If you find any vulnerability in this project,
 don't hesitate to _report them_.
 
-1. Use any of the [private contact addresses](https://github.com/qubip/qryoptic#support).
+1. Use any of the [private contact addresses](https://github.com/qubip/qryptotoken#support).
 2. Describe the vulnerability.
 
    If you have a fix, that is most welcome -- please attach or summarize

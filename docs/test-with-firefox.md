@@ -1,14 +1,14 @@
-# Testing `qryoptic` with Firefox
+# Testing `qryptotoken` with Firefox
 
-This guide outlines how to load and interact with the `qryoptic` PKCS#11 module in a custom-built Firefox browser. It covers how to set up the Firefox profile, load the module, and run basic interoperability tests.
+This guide outlines how to load and interact with the `qryptotoken` PKCS#11 module in a custom-built Firefox browser. It covers how to set up the Firefox profile, load the module, and run basic interoperability tests.
 
 <details open="open">
 <summary>Table of Contents</summary>
 
-- [Testing `qryoptic` with Firefox](#testing-qryoptic-with-firefox)
+- [Testing `qryptotoken` with Firefox](#testing-qryptotoken-with-firefox)
   - [Prerequisites](#prerequisites)
-  - [Before loading the `qryoptic` module](#before-loading-the-qryoptic-module)
-  - [Loading the `qryoptic` module in Firefox](#loading-the-qryoptic-module-in-firefox)
+  - [Before loading the `qryptotoken` module](#before-loading-the-qryptotoken-module)
+  - [Loading the `qryptotoken` module in Firefox](#loading-the-qryptotoken-module-in-firefox)
   - [PQC connection to QUBIP servers](#pqc-connection-to-qubip-servers)
   - [Interoperability Testing with OQS](#interoperability-testing-with-oqs)
     - [**For example to test `mldsa65-X25519MLKEM768`:**](#for-example-to-test-mldsa65-x25519mlkem768)
@@ -22,8 +22,8 @@ This guide outlines how to load and interact with the `qryoptic` PKCS#11 module 
 
 Before proceeding, ensure that:
 
-- You have a build of the `qryoptic` module (`libqryoptic_pkcs11.so`), compiled following [our instructions](./build-qryoptic.md).
-- You already initialized once a `qryoptic` token store, as explained in [Module Initialization](./build-qryoptic.md#module-initialization).
+- You have a build of the `qryptotoken` module (`libqryptotoken_pkcs11.so`), compiled following [our instructions](./build-qryptotoken.md).
+- You already initialized once a `qryptotoken` token store, as explained in [Module Initialization](./build-qryptotoken.md#module-initialization).
 - You have a QUBIP build of Firefox, either you [built it from source](./build-firefox-from-source.md)
   or you [have installed a pre-built flatpak bundle](./installing-flatpak-firefox.md).
 - You started a fresh instance of the QUBIP build of Firefox, **with a clean profile**, as instructed either in
@@ -31,7 +31,7 @@ Before proceeding, ensure that:
   or in
   [Installing Firefox Flatpak Image](./installing-flatpak-firefox.md)
 
-## Before loading the `qryoptic` module
+## Before loading the `qryptotoken` module
 
 The QUBIP build of Firefox has been modified to be aware of supported PQC
 algorithms, but, by design, the cryptographic implementations are not contained
@@ -56,12 +56,12 @@ The latter signals that the client and the server cannot agree on a shared set o
 while the client, i.e., Firefox, does not advertise support for this algorithm).
 
 To proceed to a successful PQC TLS 1.3 connection using the QUBIP build of
-Firefox, we need now to load the `qryoptic` module, and log into the initialized
+Firefox, we need now to load the `qryptotoken` module, and log into the initialized
 token store.
 
-## Loading the `qryoptic` module in Firefox
+## Loading the `qryptotoken` module in Firefox
 
-Once Firefox is running, follow these steps to load the `qryoptic` PKCS#11 module:
+Once Firefox is running, follow these steps to load the `qryptotoken` PKCS#11 module:
 
 1. Click the **`menu button (☰)`** in the top-right corner of Firefox.
 
@@ -81,17 +81,17 @@ Once Firefox is running, follow these steps to load the `qryoptic` PKCS#11 modul
 
    ![Step 4](./images/test-with-firefox-04.png)
 
-5. In the **Module Name** field, type: **`qryoptic`**, then click
+5. In the **Module Name** field, type: **`qryptotoken`**, then click
    **`Browse...`**
 
    ![Step 5](./images/test-with-firefox-05.png)
 
-6. Navigate to the directory where the `qryoptic` module was
+6. Navigate to the directory where the `qryptotoken` module was
    compiled, typically:
 
    `./target/debug/`
 
-   Select the file with the `.so` extension (e.g., `libqryoptic_pkcs11.so`).
+   Select the file with the `.so` extension (e.g., `libqryptotoken_pkcs11.so`).
 
    ![Step 6](./images/test-with-firefox-06.png)
 
@@ -115,11 +115,11 @@ Once Firefox is running, follow these steps to load the `qryoptic` PKCS#11 modul
 
     ![Step 10](./images/test-with-firefox-10.png)
 
-If the login is successful, Firefox will now have access to the keys and mechanisms exposed by the `qryoptic` module.
+If the login is successful, Firefox will now have access to the keys and mechanisms exposed by the `qryptotoken` module.
 
 ## PQC connection to QUBIP servers
 
-Once the `qryoptic` module is loaded, the token is initialized, and unlocked,
+Once the `qryptotoken` module is loaded, the token is initialized, and unlocked,
 you can now establish TLS connections against public servers, with support for
 the enabled PQC algorithms.
 
@@ -159,7 +159,7 @@ This server supports TLS 1.3 handshakes using various post-quantum and hybrid ke
 
 2. If the page loads successfully and the logs indicate activity from your module, it confirms the following:
 
-   - NSS is using `qryoptic` for key exchange and authentication of the handshake.
+   - NSS is using `qryptotoken` for key exchange and authentication of the handshake.
    - A post-quantum-enabled TLS handshake has completed, negotiated using a PQC key exchange and PQC authentication algorithm.
 
 3. You can use the `Developer Tools > Network > Security` panel to inspect which algorithms have been used to protect this TLS connection.

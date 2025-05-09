@@ -72,7 +72,7 @@ use sizes::*;
 
 impl MlDsaPubFactory {
     pub fn new() -> MlDsaPubFactory {
-        crate::trace!(target: crate::QRYOPTIC_TARGET, "⭐️🦀 {}::new() called", std::any::type_name::<Self>());
+        crate::trace!(target: crate::QRYPTOTOKEN_TARGET, "⭐️🦀 {}::new() called", std::any::type_name::<Self>());
         let mut data = MlDsaPubFactory {
             attributes: Vec::new(),
         };
@@ -95,7 +95,7 @@ impl MlDsaPubFactory {
             None => data.attributes.push(private),
         }
 
-        crate::trace!(target: crate::QRYOPTIC_TARGET, "🦀 {}::new() data={:?}", std::any::type_name::<Self>(), data);
+        crate::trace!(target: crate::QRYPTOTOKEN_TARGET, "🦀 {}::new() data={:?}", std::any::type_name::<Self>(), data);
 
         data
     }
@@ -103,13 +103,13 @@ impl MlDsaPubFactory {
 
 impl ObjectFactory for MlDsaPubFactory {
     fn create(&self, template: &[CK_ATTRIBUTE]) -> KResult<Object> {
-        crate::trace!(target: crate::QRYOPTIC_TARGET, "🦀 {}::create({template:?}) called", std::any::type_name::<Self>());
+        crate::trace!(target: crate::QRYPTOTOKEN_TARGET, "🦀 {}::create({template:?}) called", std::any::type_name::<Self>());
         let mut obj = self.default_object_create(template)?;
 
         mldsa_import(&mut obj)?;
 
         if obj.get_attr(CKA_VALUE).is_none() {
-            crate::error!(target: crate::QRYOPTIC_TARGET, "🦀 CKR_TEMPLATE_INCOMPLETE");
+            crate::error!(target: crate::QRYPTOTOKEN_TARGET, "🦀 CKR_TEMPLATE_INCOMPLETE");
             return err_rv!(CKR_TEMPLATE_INCOMPLETE);
         }
 
@@ -236,23 +236,23 @@ impl Mechanism for MlDsaMechanism {
         mech: &CK_MECHANISM,
         key: &Object,
     ) -> KResult<Box<dyn Verify>> {
-        crate::trace!(target: crate::QRYOPTIC_TARGET, "⭐️🦀 {}::verify_new() called", std::any::type_name::<Self>());
+        crate::trace!(target: crate::QRYPTOTOKEN_TARGET, "⭐️🦀 {}::verify_new() called", std::any::type_name::<Self>());
         if self.info.flags & CKF_VERIFY != CKF_VERIFY {
-            crate::error!(target: crate::QRYOPTIC_TARGET, "️🦀 CKR_MECHANISM_INVALID");
+            crate::error!(target: crate::QRYPTOTOKEN_TARGET, "️🦀 CKR_MECHANISM_INVALID");
             return err_rv!(CKR_MECHANISM_INVALID);
         }
 
         match key.check_key_ops(CKO_PUBLIC_KEY, CKK_ML_DSA, CKA_VERIFY) {
             Ok(_) => (),
             Err(e) => {
-                crate::error!(target: crate::QRYOPTIC_TARGET, "️🦀 Some error checking key ops: {e:?}");
+                crate::error!(target: crate::QRYPTOTOKEN_TARGET, "️🦀 Some error checking key ops: {e:?}");
                 return Err(e);
             }
         }
 
         let ret = Box::new(MLDSAOperation::verify_new(mech, key, &self.info)?);
 
-        crate::trace!(target: crate::QRYOPTIC_TARGET, "️🦀 {}::verify_new() DONE 👍", std::any::type_name::<Self>());
+        crate::trace!(target: crate::QRYPTOTOKEN_TARGET, "️🦀 {}::verify_new() DONE 👍", std::any::type_name::<Self>());
         return Ok(ret);
     }
 
@@ -347,7 +347,7 @@ pub fn register(mechs: &mut Mechanisms, ot: &mut ObjectFactories) {
 }
 
 fn mldsa_import(obj: &mut Object) -> KResult<()> {
-    crate::trace!(target: crate::QRYOPTIC_TARGET, "🦀 mldsa_import({obj:?}) called");
+    crate::trace!(target: crate::QRYPTOTOKEN_TARGET, "🦀 mldsa_import({obj:?}) called");
     bytes_attr_not_empty!(obj; CKA_VALUE);
     Ok(())
 }
@@ -370,7 +370,7 @@ impl MLDSAOperation {
         let output_len = match make_output_length_from_obj(key) {
             Ok(l) => l,
             Err(e) => {
-                crate::error!(target: crate::QRYOPTIC_TARGET, "️🦀 Error retrieving output length from object: {e:?}");
+                crate::error!(target: crate::QRYPTOTOKEN_TARGET, "️🦀 Error retrieving output length from object: {e:?}");
                 return Err(e);
             }
         };
@@ -378,7 +378,7 @@ impl MLDSAOperation {
         let public_key = match PubKey::try_from(key) {
             Ok(pk) => Some(pk),
             Err(e) => {
-                crate::error!(target: crate::QRYOPTIC_TARGET, "️🦀 Error converting from object to PubKey: {e:?}");
+                crate::error!(target: crate::QRYPTOTOKEN_TARGET, "️🦀 Error converting from object to PubKey: {e:?}");
                 return Err(e);
             }
         };
@@ -507,7 +507,7 @@ impl Verify for MLDSAOperation {
         };
 
         let sig = signature.try_into().map_err(|_| {
-            error!(target: crate::QRYOPTIC_TARGET, "Signature input slice was not of correct length");
+            error!(target: crate::QRYPTOTOKEN_TARGET, "Signature input slice was not of correct length");
             to_rv!(CKR_SIGNATURE_INVALID)
         })?;
 
@@ -521,27 +521,27 @@ impl Verify for MLDSAOperation {
                 verify(public_key.as_ref(), &message, &[], &decoded_signature)
             })
             .map_err(|_| {
-                error!(target: crate::QRYOPTIC_TARGET, "Thread spawn failed during verification");
+                error!(target: crate::QRYPTOTOKEN_TARGET, "Thread spawn failed during verification");
                 to_rv!(CKR_FUNCTION_FAILED)
             })?;
 
         let ret = handle
             .join()
             .map_err(|_| {
-                error!(target: crate::QRYOPTIC_TARGET, "Thread panicked during verification");
+                error!(target: crate::QRYPTOTOKEN_TARGET, "Thread panicked during verification");
                 to_rv!(CKR_FUNCTION_FAILED)
             })?
             .map_err(|e| {
-                error!(target: crate::QRYOPTIC_TARGET, "Verification failed: {e:?}");
+                error!(target: crate::QRYPTOTOKEN_TARGET, "Verification failed: {e:?}");
                 to_rv!(CKR_SIGNATURE_INVALID)
             });
 
         if ret.is_err() {
-            error!(target: crate::QRYOPTIC_TARGET, "Internal verification failure");
+            error!(target: crate::QRYPTOTOKEN_TARGET, "Internal verification failure");
             return ret;
         }
 
-        debug!(target: crate::QRYOPTIC_TARGET, "🦀 👌👌👌 Verification succesful!");
+        debug!(target: crate::QRYPTOTOKEN_TARGET, "🦀 👌👌👌 Verification succesful!");
         Ok(())
     }
 

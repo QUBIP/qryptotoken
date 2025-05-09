@@ -18,7 +18,7 @@
 
 ## About
 
-This guide outlines the steps for setting up and running Mozilla Firefox using the Flatpak package, specifically for testing integration with the `qryoptic` PKCS#11 module developed under the [QUBIP](https://www.qubip.eu) project.
+This guide outlines the steps for setting up and running Mozilla Firefox using the Flatpak package, specifically for testing integration with the `qryptotoken` PKCS#11 module developed under the [QUBIP](https://www.qubip.eu) project.
 
 Using Flatpak allows for a clean, sandbox environment without building Firefox from source, which is ideal for quick module testing.
 
@@ -118,13 +118,13 @@ flatpak install firefox-try firefox
 ```
 
 > [!IMPORTANT]
-> Before running Firefox, ensure that the qryoptic token file exists inside the Flatpak sandbox directory.
+> Before running Firefox, ensure that the qryptotoken token file exists inside the Flatpak sandbox directory.
 >
-> If you have already initialized the token at $HOME/.local/share/qryoptic/token.sql, copy it into the Flatpak-specific directory:
+> If you have already initialized the token at $HOME/.local/share/qryptotoken/token.sql, copy it into the Flatpak-specific directory:
 >
 > ```sh
-> mkdir -p $HOME/.var/app/org.mozilla.firefox/data/qryoptic
-> cp $HOME/.local/share/qryoptic/token.sql $HOME/.var/app/org.mozilla.firefox/data/qryoptic/token.sql
+> mkdir -p $HOME/.var/app/org.mozilla.firefox/data/qryptotoken
+> cp $HOME/.local/share/qryptotoken/token.sql $HOME/.var/app/org.mozilla.firefox/data/qryptotoken/token.sql
 > ```
 >
 > This ensures that Firefox running inside Flatpak can access the required token file correctly.
@@ -147,7 +147,7 @@ However, before doing so, there are a few important things to keep in mind.
 >
 > For testing purposes, it is always a good practice to create a **temporary profile** and reset it whenever needed. This helps to avoid any issues that might arise from leftover data or settings in the profile. In this guide, we encourage you to reset the default firefox profile located at `~/.var/app/org.mozilla.firefox/.mozilla/firefox`
 >
-> Remember, resetting the profile is particularly useful when encountering issues with the `qryoptic` module. It allows you to start fresh and ensures that any actions or operations performed on the module or Firefox itself that may affect the module's behavior are discarded.
+> Remember, resetting the profile is particularly useful when encountering issues with the `qryptotoken` module. It allows you to start fresh and ensures that any actions or operations performed on the module or Firefox itself that may affect the module's behavior are discarded.
 >
 > To launch the Firefox browser with a fresh profile, delete the contents of the following folder.
 >
@@ -155,7 +155,7 @@ However, before doing so, there are a few important things to keep in mind.
 > rm -rf ~/.var/app/org.mozilla.firefox/.mozilla/firefox
 > ```
 >
-> If you only want to remove information related to the **qryoptic** module, delete the following file.
+> If you only want to remove information related to the **qryptotoken** module, delete the following file.
 >
 > ```sh
 > rm ~/.var/app/org.mozilla.firefox/.mozilla/firefox/pkcs11.txt
@@ -172,6 +172,6 @@ However, before doing so, there are a few important things to keep in mind.
 ## Testing
 
 _Once you’ve finished setting up Firefox using this guide and have built the
-`qryoptic` module (see: [README.md](/README.md)), you’re ready to **test** its
+`qryptotoken` module (see: [README.md](/README.md)), you’re ready to **test** its
 integration with Firefox. See:
 [`test-with-firefox.md`](./test-with-firefox.md#running-firefox-from-flatpak-build)._

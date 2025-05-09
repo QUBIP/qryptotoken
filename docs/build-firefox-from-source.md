@@ -23,7 +23,7 @@
 
 ## About
 
-This guide outlines the steps for building a local copy of **Mozilla Firefox**, tailored specifically for use with the `qryoptic` PKCS#11 module, developed as part of the [QUBIP](https://www.qubip.eu) project.
+This guide outlines the steps for building a local copy of **Mozilla Firefox**, tailored specifically for use with the `qryptotoken` PKCS#11 module, developed as part of the [QUBIP](https://www.qubip.eu) project.
 
 Mozilla's official documentation is extensive and well-maintained. We **highly recommend** reviewing it for full context:
 
@@ -34,7 +34,7 @@ This guide supplements that documentation with a focused, minimal workflow to ge
 
 ### Testing
 
-_Once you’ve finished setting up Firefox using this guide and have built the `qryoptic` module (see: [README.md](/README.md)), you’re ready to **test** its integration with Firefox. See: [`test-with-firefox.md`](./test-with-firefox.md)._
+_Once you’ve finished setting up Firefox using this guide and have built the `qryptotoken` module (see: [README.md](/README.md)), you’re ready to **test** its integration with Firefox. See: [`test-with-firefox.md`](./test-with-firefox.md)._
 
 ---
 
@@ -125,7 +125,7 @@ However, before doing so, there are a few important things to keep in mind.
 >
 > For testing purposes, it is always a good practice to create a **temporary profile** and reset it whenever needed. This helps to avoid any issues that might arise from leftover data or settings in the profile. In this guide, we will create a custom profile in the `/tmp/` folder, but feel free to save the profile wherever you prefer.
 >
-> Remember, resetting the profile is particularly useful when encountering issues with the `qryoptic` module. It allows you to start fresh and ensures that any actions or operations performed on the module or Firefox itself that may affect the module's behavior are discarded.
+> Remember, resetting the profile is particularly useful when encountering issues with the `qryptotoken` module. It allows you to start fresh and ensures that any actions or operations performed on the module or Firefox itself that may affect the module's behavior are discarded.
 
 To launch the custom-built Firefox browser with a fresh profile, use the following commands:
 
@@ -155,13 +155,13 @@ If you encounter issues with `mach`, re-running `bootstrap.py` usually resolves 
 
 If you do so, Firefox runs without any debug output. If you encounter any issues or want to see detailed logs from Firefox itself, you can enable logging and also increase the verbosity level by following the [Firefox Logging Documentation](https://firefox-source-docs.mozilla.org/xpcom/logging.html).
 
-For more detailed output of the `qryoptic` module, you can use the following command, which enables verbose logging for both the `qryoptic` module and Firefox's `NSS` library:
+For more detailed output of the `qryptotoken` module, you can use the following command, which enables verbose logging for both the `qryptotoken` module and Firefox's `NSS` library:
 
 ```sh
 MOZ_LOG=pipnss:4 RUST_LOG=qubip=trace ./mach run --profile /tmp/mytestprofile
 ```
 
-This will provide detailed logs, allowing you to monitor the interaction between Firefox and the `qryoptic` module.
+This will provide detailed logs, allowing you to monitor the interaction between Firefox and the `qryptotoken` module.
 
 ## Debugging
 

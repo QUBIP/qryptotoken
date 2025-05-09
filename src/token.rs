@@ -60,7 +60,7 @@ use super::fips;
 #[cfg(feature = "fips")]
 const TOKEN_LABEL: &str = "Kryoptic FIPS Token";
 #[cfg(not(feature = "fips"))]
-const TOKEN_LABEL: &str = "Qryoptic Soft Token";
+const TOKEN_LABEL: &str = "Qryptotoken Soft Token";
 
 const MANUFACTURER_ID: &str = "QUBIP Project";
 
@@ -120,20 +120,20 @@ impl Handles {
     }
 
     pub fn insert(&mut self, handle: CK_OBJECT_HANDLE, value: String) {
-        crate::trace!(target: crate::QRYOPTIC_TARGET, "🦀 {}::insert({handle:?}, {value:?}) called", std::any::type_name::<Self>());
+        crate::trace!(target: crate::QRYPTOTOKEN_TARGET, "🦀 {}::insert({handle:?}, {value:?}) called", std::any::type_name::<Self>());
         if let Some(val) = self.rev.insert(value.clone(), handle) {
             /* this uid was already mapped */
             if val != handle {
                 let _ = self.map.remove(&val);
             }
         }
-        crate::trace!(target: crate::QRYOPTIC_TARGET, "🦀 we made it here!");
+        crate::trace!(target: crate::QRYPTOTOKEN_TARGET, "🦀 we made it here!");
         if let Some(uid) = self.map.insert(handle, value) {
             /* this handle was already mapped */
             let existing = match self.map.get(&handle) {
                 Some(v) => v,
                 None => {
-                    crate::error!(target: crate::QRYOPTIC_TARGET, "🦀 problem handling handle that was already mapped");
+                    crate::error!(target: crate::QRYPTOTOKEN_TARGET, "🦀 problem handling handle that was already mapped");
                     panic!("We should handle this better");
                 }
             };
@@ -141,7 +141,7 @@ impl Handles {
                 let _ = self.rev.remove(&uid);
             }
         }
-        crate::trace!(target: crate::QRYOPTIC_TARGET, "🦀 we are done here!");
+        crate::trace!(target: crate::QRYPTOTOKEN_TARGET, "🦀 we are done here!");
     }
 
     pub fn get(&self, handle: CK_OBJECT_HANDLE) -> Option<&String> {
@@ -1155,7 +1155,7 @@ impl Token {
         s_handle: CK_SESSION_HANDLE,
         mut obj: Object,
     ) -> KResult<CK_OBJECT_HANDLE> {
-        crate::trace!(target: crate::QRYOPTIC_TARGET, "🦀 {}::insert_object called", std::any::type_name::<Self>());
+        crate::trace!(target: crate::QRYPTOTOKEN_TARGET, "🦀 {}::insert_object called", std::any::type_name::<Self>());
         let uid = obj.get_attr_as_string(CKA_UNIQUE_ID)?;
         let is_token = obj.is_token();
         if is_token {
@@ -1169,13 +1169,13 @@ impl Token {
         obj.set_handle(handle);
         self.handles.insert(handle, uid.clone());
         if obj.is_token() {
-            crate::trace!(target: crate::QRYOPTIC_TARGET, "🦀 obj is token!");
+            crate::trace!(target: crate::QRYPTOTOKEN_TARGET, "🦀 obj is token!");
             self.object_to_storage(obj, true)?;
         } else {
-            crate::trace!(target: crate::QRYOPTIC_TARGET, "🦀 obj is not token!");
+            crate::trace!(target: crate::QRYPTOTOKEN_TARGET, "🦀 obj is not token!");
             self.session_objects.insert(handle, obj);
         }
-        crate::trace!(target: crate::QRYOPTIC_TARGET, "🦀 we are done here!");
+        crate::trace!(target: crate::QRYPTOTOKEN_TARGET, "🦀 we are done here!");
         Ok(handle)
     }
 
@@ -1184,9 +1184,9 @@ impl Token {
         s_handle: CK_SESSION_HANDLE,
         template: &[CK_ATTRIBUTE],
     ) -> KResult<CK_OBJECT_HANDLE> {
-        crate::trace!(target: crate::QRYOPTIC_TARGET, "🦀 {}::create_object called", std::any::type_name::<Self>());
+        crate::trace!(target: crate::QRYPTOTOKEN_TARGET, "🦀 {}::create_object called", std::any::type_name::<Self>());
         let object = self.object_factories.create(template)?;
-        crate::trace!(target: crate::QRYOPTIC_TARGET, "🦀 Got an object: {object:?}");
+        crate::trace!(target: crate::QRYPTOTOKEN_TARGET, "🦀 Got an object: {object:?}");
         self.insert_object(s_handle, object)
     }
 

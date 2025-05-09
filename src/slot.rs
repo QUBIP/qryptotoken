@@ -15,7 +15,7 @@ use error::{KError, KResult};
 use interface::*;
 
 static SLOT_DESCRIPTION: [CK_UTF8CHAR; 64usize] =
-    *b"Qryoptic Slot                                                   ";
+    *b"Qryptotoken Slot                                                ";
 static MANUFACTURER_ID: [CK_UTF8CHAR; 32usize] =
     *b"QUBIP Project                   ";
 

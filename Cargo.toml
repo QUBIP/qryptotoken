@@ -1,10 +1,10 @@
 [package]
-name = "qryoptic"
+name = "qryptotoken"
 version = "0.1.0"
 edition = "2021"
 
 [lib]
-name = "qryoptic_pkcs11"
+name = "qryptotoken_pkcs11"
 crate-type = ["cdylib"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

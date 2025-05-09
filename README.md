@@ -1,24 +1,24 @@
 <div align="center">
 
-`qryoptic`
+`qryptotoken`
 
   <br />
   <a href="#about"><strong>Explore the docs »</strong></a>
   <br />
   <br />
-  <a href="https://github.com/qubip/qryoptic/issues/new?assignees=&labels=bug&template=01_BUG_REPORT.md&title=bug%3A+">Report a Bug</a>
+  <a href="https://github.com/qubip/qryptotoken/issues/new?assignees=&labels=bug&template=01_BUG_REPORT.md&title=bug%3A+">Report a Bug</a>
   ·
-  <a href="https://github.com/qubip/qryoptic/issues/new?assignees=&labels=enhancement&template=02_FEATURE_REQUEST.md&title=feat%3A+">Request a Feature</a>
+  <a href="https://github.com/qubip/qryptotoken/issues/new?assignees=&labels=enhancement&template=02_FEATURE_REQUEST.md&title=feat%3A+">Request a Feature</a>
   ·
-  <a href="https://github.com/qubip/qryoptic/issues/new?assignees=&labels=question&template=04_SUPPORT_QUESTION.md&title=support%3A+">Ask a Question</a>
+  <a href="https://github.com/qubip/qryptotoken/issues/new?assignees=&labels=question&template=04_SUPPORT_QUESTION.md&title=support%3A+">Ask a Question</a>
 </div>
 
 <div align="center">
 <br />
 
-[![Project license](https://img.shields.io/github/license/qubip/qryoptic.svg?style=flat-square)][LICENSE]
+[![Project license](https://img.shields.io/github/license/qubip/qryptotoken.svg?style=flat-square)][LICENSE]
 
-[![Pull Requests welcome](https://img.shields.io/badge/PRs-welcome-ff69b4.svg?style=flat-square)](https://github.com/qubip/qryoptic/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22)
+[![Pull Requests welcome](https://img.shields.io/badge/PRs-welcome-ff69b4.svg?style=flat-square)](https://github.com/qubip/qryptotoken/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22)
 [![code with love by qubip](https://img.shields.io/badge/%3C%2F%3E%20with%20%E2%99%A5%20by-qubip%2Fnisec-ff1414.svg?style=flat-square)](https://github.com/orgs/QUBIP/teams/nisec)
 
 </div>
@@ -35,21 +35,15 @@
 <summary>Table of Contents</summary>
 
 - [About](#about)
+  - [Supported algorithms](#supported-algorithms)
+    - [Key Encapsulation Methods](#key-encapsulation-methods)
+    - [Digital Signatures](#digital-signatures)
 - [Getting Started](#getting-started)
-<!--
-- [Prerequisites](#prerequisites)
-- [Installation](#installation)
-  -->
-
-<!--
-- [Usage](#usage)
--->
-
 - [Roadmap](#roadmap)
 - [Support](#support)
 - [Project assistance](#project-assistance)
 - [Contributing](#contributing)
-- [Authors & contributors](#authors--contributors)
+- [Authors \& contributors](#authors--contributors)
 - [Security](#security)
 - [License](#license)
 - [Acknowledgements](#acknowledgements)
@@ -60,7 +54,7 @@
 
 ## About
 
-`qryoptic` is a pure-Rust software token implementation of a PKCS#11 loadable module for the Internet Browsing pilot of
+`qryptotoken` is a pure-Rust software token implementation of a PKCS#11 loadable module for the Internet Browsing pilot of
 [QUBIP](https://www.qubip.eu) project.
 
 The project builds upon and diverges from the original [kryoptic](https://github.com/latchset/kryoptic) project with the primary distinction being the added capability to build the project as a Rust-only version.
@@ -76,7 +70,7 @@ and external implementations through our `Adapters`.
 The current supported algorithms are summarized in the following tables.
 
 > [!NOTE]
-> Future updates to qryoptic will expand its support
+> Future updates to qryptotoken will expand its support
 > for additional PQC algorithms
 > and other external implementations.
 
@@ -94,7 +88,7 @@ The current supported algorithms are summarized in the following tables.
 
 ## Getting Started
 
-To get started, first build the `qryoptic` module by following the [build guide](./docs/build-qryoptic.md). It will walk you through installing the necessary dependencies, setting up the token environment, and initializing the module using the `pkcs11-tool`.
+To get started, first build the `qryptotoken` module by following the [build guide](./docs/build-qryptotoken.md). It will walk you through installing the necessary dependencies, setting up the token environment, and initializing the module using the `pkcs11-tool`.
 
 Once you've successfully built and initialized the module, you're ready to test it with Firefox.
 
@@ -127,17 +121,17 @@ After your Firefox environment is ready, just follow the [testing guide](./docs/
 
 ## Roadmap
 
-See the [open issues](https://github.com/qubip/qryoptic/issues) for a list of proposed features (and known issues).
+See the [open issues](https://github.com/qubip/qryptotoken/issues) for a list of proposed features (and known issues).
 
-- [Top Feature Requests](https://github.com/qubip/qryoptic/issues?q=label%3Aenhancement+is%3Aopen+sort%3Areactions-%2B1-desc) (Add your votes using the 👍 reaction)
-- [Top Bugs](https://github.com/qubip/qryoptic/issues?q=is%3Aissue+is%3Aopen+label%3Abug+sort%3Areactions-%2B1-desc) (Add your votes using the 👍 reaction)
-- [Newest Bugs](https://github.com/qubip/qryoptic/issues?q=is%3Aopen+is%3Aissue+label%3Abug)
+- [Top Feature Requests](https://github.com/qubip/qryptotoken/issues?q=label%3Aenhancement+is%3Aopen+sort%3Areactions-%2B1-desc) (Add your votes using the 👍 reaction)
+- [Top Bugs](https://github.com/qubip/qryptotoken/issues?q=is%3Aissue+is%3Aopen+label%3Abug+sort%3Areactions-%2B1-desc) (Add your votes using the 👍 reaction)
+- [Newest Bugs](https://github.com/qubip/qryptotoken/issues?q=is%3Aopen+is%3Aissue+label%3Abug)
 
 ## Support
 
 Reach out to the maintainers at one of the following places:
 
-- [GitHub issues](https://github.com/qubip/qryoptic/issues/new?assignees=&labels=question&template=04_SUPPORT_QUESTION.md&title=support%3A+)
+- [GitHub issues](https://github.com/qubip/qryptotoken/issues/new?assignees=&labels=question&template=04_SUPPORT_QUESTION.md&title=support%3A+)
 - <security@romen.dev> to disclose security issues according to our [security documentation](docs/SECURITY.md).
 - <coc@romen.dev> to report violations of our [Code of Conduct](docs/CODE_OF_CONDUCT.md).
 - Details about the GPG keys to encrypt reports are included in our [security documentation](docs/SECURITY.md).
@@ -146,11 +140,11 @@ Reach out to the maintainers at one of the following places:
 
 If you want to say **thank you** or/and support active development:
 
-- Add a [GitHub Star](https://github.com/qubip/qryoptic) to the project.
+- Add a [GitHub Star](https://github.com/qubip/qryptotoken) to the project.
 - Mention this project on your social media of choice.
 - Write interesting articles about the project, and cite us.
 
-Together, we can make Qryoptic **better**!
+Together, we can make Qryptotoken **better**!
 
 ## Contributing
 
@@ -165,7 +159,7 @@ Please read [our contribution guidelines](docs/CONTRIBUTING.md), and thank you f
 
 The original setup of this repository is by [NISEC](https://github.com/orgs/QUBIP/teams/nisec).
 
-For a full list of all authors and contributors, see [the contributors page](https://github.com/qubip/qryoptic/contributors).
+For a full list of all authors and contributors, see [the contributors page](https://github.com/qubip/qryptotoken/contributors).
 
 ## Security
 
@@ -181,7 +175,7 @@ This project is licensed under the
 ([GPL-3.0-only](https://spdx.org/licenses/GPL-3.0-only.html)).
 
 ```text
-qryoptic - a kryoptic fork tailored for PQC
+qryptotoken - a kryoptic fork tailored for PQC
 
 Copyright (C) 2023-2024 Simo Sorce, Jakub Jelen
 Copyright (C) 2023-2025 Tampere University

@@ -1166,7 +1166,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "qryoptic"
+name = "qryptotoken"
 version = "0.1.0"
 dependencies = [
  "aes-gcm",

@@ -60,7 +60,7 @@ representative at an online or offline event.
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
 reported to the community leaders responsible for enforcement
-using any of the [private contact addresses](https://github.com/qubip/qryoptic#support).
+using any of the [private contact addresses](https://github.com/qubip/qryptotoken#support).
 
 All complaints will be reviewed and investigated promptly and fairly.
 
