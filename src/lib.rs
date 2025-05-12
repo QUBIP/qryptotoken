@@ -29,6 +29,7 @@ mod session;
 mod slot;
 mod storage;
 mod token;
+mod version;
 
 mod log;
 use crate::log::*;
@@ -2353,7 +2354,10 @@ static MANUFACTURER_ID: [CK_UTF8CHAR; 32usize] =
     *b"QUBIP Project                   ";
 static LIBRARY_DESCRIPTION: [CK_UTF8CHAR; 32usize] =
     *b"qryptotoken PKCS11 Module       ";
-static LIBRARY_VERSION: CK_VERSION = CK_VERSION { major: 0, minor: 1 };
+static LIBRARY_VERSION: CK_VERSION = CK_VERSION {
+    major: version::MAJOR,
+    minor: version::MINOR,
+};
 
 static MODULE_INFO: CK_INFO = CK_INFO {
     cryptokiVersion: IMPLEMENTED_VERSION,

@@ -208,7 +208,10 @@ impl Token {
                 ulTotalPrivateMemory: 0,
                 ulFreePrivateMemory: CK_EFFECTIVELY_INFINITE,
                 hardwareVersion: CK_VERSION { major: 0, minor: 0 },
-                firmwareVersion: CK_VERSION { major: 0, minor: 0 },
+                firmwareVersion: CK_VERSION {
+                    major: crate::version::MAJOR,
+                    minor: crate::version::MINOR,
+                },
                 utcTime: *b"0000000000000000",
             },
             filename: filename,

@@ -34,7 +34,10 @@ impl Slot {
                 manufacturerID: MANUFACTURER_ID,
                 flags: CKF_TOKEN_PRESENT,
                 hardwareVersion: CK_VERSION { major: 0, minor: 0 },
-                firmwareVersion: CK_VERSION { major: 0, minor: 0 },
+                firmwareVersion: CK_VERSION {
+                    major: crate::version::MAJOR,
+                    minor: crate::version::MINOR,
+                },
             },
             token: RwLock::new(Token::new(filename)?),
             sessions: HashMap::new(),
