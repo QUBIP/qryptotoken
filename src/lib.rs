@@ -94,6 +94,8 @@ mod mlkem;
 #[cfg(feature = "pure-rust")]
 mod mldsa;
 
+mod adapters;
+
 /* Helper code */
 mod kasn1;
 mod misc;

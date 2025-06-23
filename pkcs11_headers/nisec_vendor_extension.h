@@ -6,8 +6,14 @@
 #define CKP_NISEC (CKP_VENDOR_DEFINED | NISEC_VENDOR_NSS)
 #define CKK_NISEC (CKK_VENDOR_DEFINED | NISEC_VENDOR_NSS)
 
+#define CKK_ML_DSA (CKK_NISEC + 1)
+#define CKM_ML_DSA_KEYGEN (CKM_NISEC + 2)
+#define CKM_ML_DSA (CKM_NISEC + 3)
 
-#define CKK_ML_DSA (CKK_NISEC + 1) /* Custom key type for ML-based DSA */
-#define CKM_ML_DSA_KEYGEN (CKM_NISEC + 2) /* Custom mechanism for ML-based DSA */
-#define CKM_ML_DSA (CKM_NISEC + 3) /* Custom mechanism for ML-based DSA */
+/* CKA_PARAMETER_SET is new for v3.2 */
+#define CKA_PARAMETER_SET 0x0000061DUL
 
+/* ML-DSA values for CKA_PARAMETER_SETS */
+#define CKP_ML_DSA_44 0x00000001UL
+#define CKP_ML_DSA_65 0x00000002UL
+#define CKP_ML_DSA_87 0x00000003UL

@@ -40,7 +40,7 @@ macro_rules! attrmap_element {
     };
 }
 
-static ATTRMAP: [Attrmap<'_>; 147] = [
+static ATTRMAP: [Attrmap<'_>; 148] = [
     attrmap_element!(CKA_CLASS; as NumType),
     attrmap_element!(CKA_TOKEN; as BoolType),
     attrmap_element!(CKA_PRIVATE; as BoolType),
@@ -188,6 +188,7 @@ static ATTRMAP: [Attrmap<'_>; 147] = [
     attrmap_element!(CKA_VALIDATION_VENDOR_URI; as StringType),
     attrmap_element!(CKA_VALIDATION_PROFILE; as StringType),
     attrmap_element!(CKA_VALIDATION_FLAGS; as NumType),
+    attrmap_element!(CKA_PARAMETER_SET; as NumType),
 ];
 
 #[derive(Debug, Clone)]
