@@ -7,6 +7,7 @@ use std::vec::Vec;
 
 use crate::mldsa;
 use crate::mlkem;
+use crate::slhdsa;
 
 use super::attribute;
 #[cfg(not(feature = "pure-rust"))]
@@ -245,6 +246,7 @@ impl Token {
         //tlskdf::register(&mut token.mechanisms, &mut token.object_factories);
         mlkem::register(&mut token.mechanisms, &mut token.object_factories);
         mldsa::register(&mut token.mechanisms, &mut token.object_factories);
+        slhdsa::register(&mut token.mechanisms, &mut token.object_factories);
 
         #[cfg(feature = "fips")]
         fips::register(&mut token.mechanisms, &mut token.object_factories);

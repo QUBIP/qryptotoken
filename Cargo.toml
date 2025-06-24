@@ -51,13 +51,14 @@ libcrux-ecdh = "0.0.2"
 libcrux-ml-kem = "0.0.2"
 #ml-dsa = { version = "0.1.0-pre.2" }
 libcrux-ml-dsa = { git = "https://github.com/cryspen/libcrux.git", rev = "b80be51c4c7a320c00bf8af2b7a6703f53eb649b", version = "0.0.2" }
-
+slh-dsa = "0.0.3"
 
 [features]
-default = ["pure-rust", "env_logger", "libcrux"]
+default = ["pure-rust", "env_logger", "libcrux", "rustcrypto"]
 
 env_logger = ["dep:env_logger"]
 ossl = []
 fips = ["rusqlite/bundled"]
 pure-rust = []
 libcrux = []
+rustcrypto = []
