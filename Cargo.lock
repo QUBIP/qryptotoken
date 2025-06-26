@@ -726,6 +726,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "libcrux-ed25519"
+version = "0.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0c23fece0fe97b00dff260eb176becdb0418eee7969952b40f0ce64a4b8edf28"
+dependencies = [
+ "libcrux-hacl-rs",
+ "libcrux-macros 0.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libcrux-sha2",
+ "rand_core 0.9.3",
+ "wycheproof",
+]
+
+[[package]]
 name = "libcrux-hacl-rs"
 version = "0.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1174,6 +1187,7 @@ dependencies = [
  "itertools",
  "libc",
  "libcrux-ecdh",
+ "libcrux-ed25519",
  "libcrux-kem",
  "libcrux-ml-dsa",
  "libcrux-ml-kem",
@@ -1701,6 +1715,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6f42320e61fe2cfd34354ecb597f86f413484a798ba44a8ca1165c58d42da6c1"
 dependencies = [
  "bitflags",
+]
+
+[[package]]
+name = "wycheproof"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "efb3be19abfb206c6adcbdf2007b09b0e8ca1f6530db40c03b42ce8ed4719894"
+dependencies = [
+ "data-encoding",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
