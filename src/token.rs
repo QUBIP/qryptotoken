@@ -5,6 +5,7 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::vec::Vec;
 
+use crate::composite_mldsa;
 use crate::mldsa;
 use crate::mlkem;
 use crate::slhdsa;
@@ -247,6 +248,10 @@ impl Token {
         mlkem::register(&mut token.mechanisms, &mut token.object_factories);
         mldsa::register(&mut token.mechanisms, &mut token.object_factories);
         slhdsa::register(&mut token.mechanisms, &mut token.object_factories);
+        composite_mldsa::register(
+            &mut token.mechanisms,
+            &mut token.object_factories,
+        );
 
         #[cfg(feature = "fips")]
         fips::register(&mut token.mechanisms, &mut token.object_factories);

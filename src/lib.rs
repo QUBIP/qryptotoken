@@ -97,6 +97,9 @@ mod mldsa;
 #[cfg(feature = "pure-rust")]
 mod slhdsa;
 
+#[cfg(feature = "pure-rust")]
+mod composite_mldsa;
+
 mod adapters;
 
 /* Helper code */
