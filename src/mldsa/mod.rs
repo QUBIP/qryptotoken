@@ -290,15 +290,16 @@ impl Mechanism for MlDsaMechanism {
             Err(e) => return Err(e),
         }
 
-        let _mech = mech.mechanism;
-        Ok(Box::new(MlDsaOperation {
-            output_len: make_output_length_from_obj(key)?,
-            public_key: None,
-            private_key: Some(PrivKey::try_from(key)?),
-            data: Vec::new(),
-            finalized: false,
-            in_use: false,
-        }))
+        /* sign_new not implemented yet, the code will panic here */
+        let ret = Box::new(MlDsaOperation::sign_new(mech, key, &self.info)?);
+
+        crate::trace!(
+            target: crate::QRYPTOTOKEN_TARGET,
+            "️🦀 {}::sign_new() DONE 👍",
+            std::any::type_name::<Self>()
+        );
+
+        return Ok(ret);
     }
 
     fn verify_new(
@@ -586,6 +587,15 @@ struct MlDsaOperation {
     in_use: bool,
 }
 impl MlDsaOperation {
+    #[allow(dead_code)]
+    pub fn sign_new(
+        _mech: &CK_MECHANISM,
+        _key: &Object,
+        _info: &CK_MECHANISM_INFO,
+    ) -> KResult<Self> {
+        unimplemented!();
+    }
+
     pub fn verify_new(
         _mech: &CK_MECHANISM,
         key: &Object,
