@@ -3,23 +3,13 @@ use crate::interface::*;
 use crate::log::*;
 use crate::object::*;
 use crate::{err_rv, to_rv};
-use libcrux_ed25519::generate_key_pair as generate_ed25519_key_pair;
-use libcrux_ed25519::{self, SigningKey, VerificationKey};
+use libcrux_ed25519::{
+    self, generate_key_pair as generate_ed25519_key_pair, SigningKey,
+    VerificationKey,
+};
 use signature::{Signer, Verifier};
 
-/// Public constants defining key and signature sizes for Ed25519,
-/// as specified in [RFC 8032, Section 5.1.5](https://datatracker.ietf.org/doc/html/rfc8032#section-5.1.5).
-pub const ED25519_PK_SIZE: usize = 32;
-pub const ED25519_SK_SIZE: usize = 32;
-pub const ED25519_SIG_SIZE: usize = 64;
-
-/// Wrapper structs for Ed25519 public key types.
 pub struct Ed25519PubKey(Box<VerificationKey>);
-/// Enum for supporting multiple public key types (future extensibility)
-pub enum PubKey {
-    Ed25519(Ed25519PubKey),
-}
-
 impl Clone for Ed25519PubKey {
     /// Performs a clone of the Ed25519 public key by extracting the raw
     /// 32-byte array from the internal `VerificationKey`, reconstructing a
@@ -30,26 +20,25 @@ impl Clone for Ed25519PubKey {
         Ed25519PubKey(Box::new(cloned_key))
     }
 }
-/// Wrapper structs for Ed25519 private key types */
-pub struct Ed25519PrivKey(Box<SigningKey>);
-/// Enum for supporting multiple private key types (future extensibility) */
-pub enum PrivKey {
-    Ed25519(Ed25519PrivKey),
+
+pub enum PubKey {
+    Ed25519(Ed25519PubKey),
 }
 
-/// Performs a clone of the Ed25519 private key by extracting the raw 32-byte
-/// array from the internal `SigningKey`, reconstructing a new key from those
-/// bytes and wrapping it in a new `Box`.
-impl Clone for PrivKey {
+pub struct Ed25519PrivKey(Box<SigningKey>);
+impl Clone for Ed25519PrivKey {
+    /// Performs a clone of the Ed25519 private key by extracting the raw
+    /// 32-byte array from the internal `VerificationKey`, reconstructing a
+    /// new key from those bytes, and wrapping it in a new `Box`.
     fn clone(&self) -> Self {
-        match self {
-            PrivKey::Ed25519(sk) => {
-                let bytes: [u8; 32] = *sk.0.as_ref().as_ref();
-                let cloned_key = SigningKey::from_bytes(bytes);
-                PrivKey::Ed25519(Ed25519PrivKey(Box::new(cloned_key)))
-            }
-        }
+        let bytes: [u8; 32] = *self.0.as_ref().as_ref();
+        let cloned_key = SigningKey::from_bytes(bytes);
+        Ed25519PrivKey(Box::new(cloned_key))
     }
+}
+
+pub enum PrivKey {
+    Ed25519(Ed25519PrivKey),
 }
 
 impl std::fmt::Debug for PrivKey {
@@ -68,13 +57,13 @@ impl std::fmt::Debug for PubKey {
     }
 }
 
-/// The first `as_ref()` dereferences the `Box<VerificationKey>` to `
-/// VerificationKey`, and the second `as_ref()` calls the `AsRef<[u8; 32]>`
-/// implementation to get the raw bytes. This gives a reference to the
-/// internal `[u8; 32]`, which can be copied or used as a slice.
-
+/*
+ * The first `as_ref()` dereferences the `Box<VerificationKey>` to `
+ * VerificationKey`, and the second `as_ref()` calls the `AsRef<[u8; 32]>`
+ * implementation to get the raw bytes. This gives a reference to the
+ * internal `[u8; 32]`, which can be copied or used as a slice.
+ */
 impl PubKey {
-    #[allow(dead_code)]
     pub fn as_ref(&self) -> &[u8] {
         match self {
             PubKey::Ed25519(pk) => pk.0.as_ref().as_ref(),
@@ -82,12 +71,13 @@ impl PubKey {
     }
 }
 
-/// The first `as_ref()` dereferences the `Box<SigningKey>` to `&SigningKey`,
-/// and the second `as_ref()` calls the `AsRef<[u8; 32]>` implementation to
-/// get the raw bytes. This gives a reference to the internal `[u8; 32]`,
-/// which can be copied or used as a slice.
+/*
+ * The first `as_ref()` dereferences the `Box<SigningKey>` to `&SigningKey`,
+ * and the second `as_ref()` calls the `AsRef<[u8; 32]>` implementation to
+ * get the raw bytes. This gives a reference to the internal `[u8; 32]`,
+ * which can be copied or used as a slice.
+ */
 impl PrivKey {
-    #[allow(dead_code)]
     pub fn as_ref(&self) -> &[u8] {
         match self {
             PrivKey::Ed25519(sk) => sk.0.as_ref().as_ref(),
@@ -107,8 +97,7 @@ impl Verifier<Vec<u8>> for PubKey {
                     .as_slice()
                     .try_into()
                     .map_err(|_| signature::Error::new())?;
-                // Use `.as_ref().as_ref()` to extract &[u8; 32] from the
-                // VerificationKey wrapper.
+
                 libcrux_ed25519::verify(msg, pk.0.as_ref().as_ref(), &sig)
             }
         };
@@ -124,10 +113,8 @@ impl Signer<Vec<u8>> for PrivKey {
     fn try_sign(&self, msg: &[u8]) -> Result<Vec<u8>, signature::Error> {
         let result = match self {
             PrivKey::Ed25519(sk) => {
-                // Use `.as_ref().as_ref()` to extract &[u8; 32] from the
-                // SigningKey wrapper.
                 libcrux_ed25519::sign(msg, sk.0.as_ref().as_ref())
-                    .map(|sig| sig.as_ref().to_vec())
+                    .map(|sig| sig.to_vec())
             }
         };
 
@@ -137,7 +124,8 @@ impl Signer<Vec<u8>> for PrivKey {
         })
     }
 }
-#[allow(dead_code)]
+
+/* FIX: this function should have the type of the curve as parameter */
 pub fn generate_key_pair() -> KResult<(PrivKey, PubKey)> {
     #[cfg(feature = "pure-rust")]
     let mut rng = crate::rng::RNG::new().expect("RNG instantiation failed");
