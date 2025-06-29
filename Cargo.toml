@@ -53,6 +53,7 @@ libcrux-ml-kem = "0.0.2"
 libcrux-ml-dsa = { git = "https://github.com/cryspen/libcrux.git", rev = "b80be51c4c7a320c00bf8af2b7a6703f53eb649b", version = "0.0.2" }
 slh-dsa = "0.0.3"
 libcrux-ed25519 = { version = "0.0.2", features = ["rand"] }
+base64 = "0.22.1"
 
 
 [features]

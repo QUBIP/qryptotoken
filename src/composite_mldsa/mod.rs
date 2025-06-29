@@ -720,3 +720,6 @@ impl Verify for MlDsa65Ed25519Operation {
         Ok(self.output_len)
     }
 }
+
+#[cfg(test)]
+mod tests;
