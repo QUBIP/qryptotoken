@@ -82,9 +82,18 @@ The current supported algorithms are summarized in the following tables.
 
 #### Digital Signatures
 
-| Algorithm | Adapter |
-| --------- | ------- |
-| ML-DSA-65 | libcrux |
+|      Algorithm     |  Adapter   |
+| ------------------ | ---------- |
+| ML-DSA-44          | libcrux    |
+| ML-DSA-65          | libcrux    |
+| ML-DSA-87          | libcrux    |
+| MLDSA65-Ed25519    | libcrux    |
+| SLH-DSA-SHAKE-128s | rustcrypto |
+| SLH-DSA-SHAKE-128f | rustcrypto |
+| SLH-DSA-SHAKE-192s | rustcrypto |
+| SLH-DSA-SHAKE-192f | rustcrypto |
+| SLH-DSA-SHAKE-256s | rustcrypto |
+| SLH-DSA-SHAKE-256f | rustcrypto |
 
 ## Getting Started
 

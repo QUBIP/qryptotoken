@@ -30,7 +30,7 @@ Mozilla's official documentation is extensive and well-maintained. We **highly r
 - 📚 [Firefox Source Docs](https://firefox-source-docs.mozilla.org/)
 - ⚡ [Contributor Quick Reference](https://firefox-source-docs.mozilla.org/contributing/contribution_quickref.html)
 
-This guide supplements that documentation with a focused, minimal workflow to get you up and running **quickly** using `git` instead of Mercurial.
+This guide supplements that documentation with a focused, minimal workflow to get you up and running **quickly**.
 
 ### Testing
 
@@ -50,9 +50,6 @@ Ensure your system has the following tools installed:
 - `Git`
 - `curl`
 
-> [!NOTE]
->️ These instructions assume a Git-based workflow. Mercurial (`hg`) is not used.
-
 ---
 
 ### Bootstrapping the Environment
@@ -60,25 +57,22 @@ Ensure your system has the following tools installed:
 Download Mozilla’s bootstrap python script to prepare your development environment.
 
 ```sh
-curl https://hg.mozilla.org/mozilla-central/raw-file/default/python/mozboot/bin/bootstrap.py -O
+curl -LO https://raw.githubusercontent.com/mozilla-firefox/firefox/refs/heads/main/python/mozboot/bin/bootstrap.py
 ```
 
 Run the script.
 
 ```sh
-python3 bootstrap.py --vcs=git
+python3 bootstrap.py
 ```
-
-> [!NOTE]
-> Using `--vcs=git` configures your environment to use git instead of mercurial to clone the Firefox source.
 
 > [!WARNING]
 > The `bootstrap.py` script sets up your environment by installing necessary prerequisites.
-> However, it also clones the `mozilla-unified` repository by default, which
+> However, it also clones the `firefox` repository by default, which
 > might require some time and extra storage: we recommend not to interrupt/skip
 > this step, as we experienced this can lead to potential issues later.
 >
-> Once the script terminates, you can safely ignore the `mozilla-unified`
+> Once the script terminates, you can safely ignore the `firefox`
 > repository and Firefox building and follow the next step of these instructions.
 
 ---
@@ -88,8 +82,8 @@ python3 bootstrap.py --vcs=git
 Clone the QUBIP fork of the Firefox source repository and move into the working directory:
 
 ```sh
-git clone git@github.com:qubip/mozilla-central.git
-cd mozilla-central
+git clone git@github.com:qubip/firefox.git
+cd firefox
 ```
 
 ---
@@ -135,10 +129,10 @@ To launch the custom-built Firefox browser with a fresh profile, use the followi
    rm -rf /tmp/mytestprofile && touch /tmp/mytestprofile
    ```
 
-2. Make sure you are in the correct working directory. Navigate to the `mozilla-central` directory first:
+2. Make sure you are in the correct working directory. Navigate to the `firefox` directory first:
 
    ```sh
-   cd mozilla-central
+   cd firefox
    ```
 
 3. Then, launch Firefox with the newly created profile:
