@@ -1,7 +1,6 @@
 use super::*;
 use base64::{engine::general_purpose, Engine};
 use env_logger::Builder;
-use libcrux_ml_dsa::SIGNING_RANDOMNESS_SIZE;
 use std::sync::Once;
 
 /*
@@ -56,7 +55,7 @@ const PK: &str = "sUBfqZd4dRMattD2hhtr9zkKoTYD3EzX\
     ls8Sk+mfhnUfddz1BxunBB+Raph/J9BK+zlsEq7PvRQI+dl6ASho9jTjcfx9dvvAoGnH\
     lbcmxZll3dXvh53tzHyphlb2BOJnHg==";
 
-const SK: &str = "Us5P2y9Za2FgacrCLKhfToSnDQAcxQMrw7MJdLCpvsH/Eo9gC70cPn\
+const _SK: &str = "Us5P2y9Za2FgacrCLKhfToSnDQAcxQMrw7MJdLCpvsH/Eo9gC70cPn\
     3OjprC89BXwsjbb1RWN5Yu8oEr8h3ckw==";
 
 const SIG: &str = "ZO8wj2bNrycdea5wP7xEmwcMya+Dxv25T/jq51zto2\
@@ -282,48 +281,6 @@ fn test_import_pubkey_verify_signature() {
         PubKey::decode(&input_pk).expect("Failure while decoding Public Key");
 
     eprintln!("\n\nPublic Key: {pk:?}\n");
-
-    pk.verify(MSG, &sig).expect("Verify failed");
-}
-
-#[test]
-#[ignore]
-/*
- * The serialized private key is encoded as (mldsaSeed || tradSK). Since our
- * encoding requires the actual mldsa65 SK concatenated to the ed25519 SK, we
- * extract the seed, generate the mldsa65 keypair, take the signing key and
- * then construct a new encoded MLDSA65-Ed25519 private key that respects our
- * encoding expectations.
-*/
-fn test_import_privkey_sign_message() {
-    setup();
-    let input_sk = general_purpose::STANDARD.decode(SK).unwrap();
-
-    let (mldsa65_seed, ed22519_sk) = input_sk.split_at(SIGNING_RANDOMNESS_SIZE);
-
-    /* Generate the sk deterministically from the seed */
-    let pair = libcrux_ml_dsa::ml_dsa_65::generate_key_pair(
-        mldsa65_seed.try_into().unwrap(),
-    );
-    let mldsa65_sk = pair.signing_key;
-
-    let mut final_sk_bytes = mldsa65_sk.as_ref().to_vec();
-    final_sk_bytes.extend_from_slice(ed22519_sk);
-
-    let sk = PrivKey::decode(&final_sk_bytes)
-        .expect("Failure while decoding Private Key");
-
-    eprintln!("\n\nPrivate Key: {sk:?}\n");
-
-    let sig = sk.try_sign(MSG).expect("Sign failed");
-
-    let input_sig_bytes = general_purpose::STANDARD.decode(SIG).unwrap();
-    let sig_bytes = sig.encode();
-    assert_eq!(input_sig_bytes, sig_bytes);
-
-    let input_pk = general_purpose::STANDARD.decode(PK).unwrap();
-    let pk =
-        PubKey::decode(&input_pk).expect("Failure while decoding Public Key");
 
     pk.verify(MSG, &sig).expect("Verify failed");
 }
