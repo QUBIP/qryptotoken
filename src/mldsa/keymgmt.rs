@@ -1,5 +1,6 @@
 use crate::error::*;
 use crate::interface::*;
+use crate::mldsa::MlDsaSignAddCtx;
 use crate::object::*;
 use crate::{err_rv, to_rv};
 use libcrux_ml_dsa::KEY_GENERATION_RANDOMNESS_SIZE;
@@ -92,7 +93,6 @@ impl std::fmt::Debug for PrivKey {
     }
 }
 
-#[allow(dead_code)]
 impl Signature {
     pub fn encode(&self) -> Vec<u8> {
         match self {
@@ -129,14 +129,6 @@ impl Signature {
         };
 
         Ok(res)
-    }
-
-    pub const fn output_len(&self) -> usize {
-        match self {
-            Signature::MlDsa44(_) => ML_DSA_44_SIG_SIZE,
-            Signature::MlDsa65(_) => ML_DSA_65_SIG_SIZE,
-            Signature::MlDsa87(_) => ML_DSA_87_SIG_SIZE,
-        }
     }
 }
 
@@ -239,6 +231,37 @@ impl Verifier<Signature> for PubKey {
     }
 }
 
+impl PubKey {
+    pub fn verify_with_params(
+        &self,
+        msg: &[u8],
+        signature: &Signature,
+        params: &MlDsaSignAddCtx,
+    ) -> Result<(), signature::Error> {
+        if params.ctx.is_some() {
+            let ctx = params.ctx.as_deref().unwrap();
+            let res = match (self, signature) {
+                (PubKey::MlDsa44(pk), Signature::MlDsa44(sig)) => {
+                    pk.verify_with_ctx(msg, sig, ctx)
+                }
+                (PubKey::MlDsa65(pk), Signature::MlDsa65(sig)) => {
+                    pk.verify_with_ctx(msg, sig, ctx)
+                }
+                (PubKey::MlDsa87(pk), Signature::MlDsa87(sig)) => {
+                    pk.verify_with_ctx(msg, sig, ctx)
+                }
+                _ => Err(signature::Error::from_source(
+                    "Mismatched key and signature types",
+                )),
+            };
+            res.map_err(|e| signature::Error::from_source(e))
+        } else {
+            /* Fallback to default case (no ctx) */
+            self.verify(msg, signature)
+        }
+    }
+}
+
 impl PrivKey {
     pub fn encode(&self) -> Vec<u8> {
         match self {
@@ -337,6 +360,37 @@ impl Signer<Signature> for PrivKey {
                 let sig = sk.try_sign(msg)?;
                 Ok(Signature::MlDsa87(sig))
             }
+        }
+    }
+}
+
+impl PrivKey {
+    pub fn try_sign_with_params(
+        &self,
+        msg: &[u8],
+        params: &MlDsaSignAddCtx,
+    ) -> Result<Signature, signature::Error> {
+        let det = params.hedge == CKH_DETERMINISTIC_REQUIRED;
+
+        if det || params.ctx.is_some() {
+            let ctx = params.ctx.as_deref().unwrap_or(&[]);
+            match self {
+                PrivKey::MlDsa44(sk) => {
+                    let sig = sk.try_sign_with_ctx(msg, ctx, det)?;
+                    Ok(Signature::MlDsa44(sig))
+                }
+                PrivKey::MlDsa65(sk) => {
+                    let sig = sk.try_sign_with_ctx(msg, ctx, det)?;
+                    Ok(Signature::MlDsa65(sig))
+                }
+                PrivKey::MlDsa87(sk) => {
+                    let sig = sk.try_sign_with_ctx(msg, ctx, det)?;
+                    Ok(Signature::MlDsa87(sig))
+                }
+            }
+        } else {
+            /* Fallback to default case (no ctx and hedged mode) */
+            self.try_sign(msg)
         }
     }
 }

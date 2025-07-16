@@ -113,6 +113,34 @@ impl Verifier<Signature> for PubKey {
     }
 }
 
+impl PubKey {
+    /// Verifies a message signature with an optional context.
+    ///
+    /// # Arguments
+    ///
+    /// * `msg` - The original message that was signed.
+    /// * `signature` - The signature to verify.
+    /// * `ctx` - The context used during signing.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the signature verification fails.
+    pub fn verify_with_ctx(
+        &self,
+        msg: &[u8],
+        signature: &Signature,
+        ctx: &[u8],
+    ) -> Result<(), signature::Error> {
+        ml_dsa_44::verify(&self.0, msg, ctx, &signature.0).map_err(|e| {
+            signature::Error::from_source(format!(
+                "ML-DSA-44 signature verification failed: {e:?}"
+            ))
+        })?;
+
+        Ok(())
+    }
+}
+
 impl PrivKey {
     pub fn encode(&self) -> Vec<u8> {
         self.0.as_slice().to_vec()
@@ -148,6 +176,53 @@ impl Signer<Signature> for PrivKey {
         })?;
 
         let sig = ml_dsa_44::sign(&self.0, msg, &[], rnd).map_err(|e| {
+            signature::Error::from_source(format!(
+                "ML-DSA-44 signing failed: {e:?}"
+            ))
+        })?;
+
+        Ok(Signature(Box::new(sig)))
+    }
+}
+
+impl PrivKey {
+    /// Attempts to sign a message, with optional context and support for
+    /// deterministic or randomized signing.
+    ///
+    /// # Arguments
+    ///
+    /// * `msg` - The message to be signed.
+    /// * `ctx` - Optional context (max 255 bytes).
+    /// * `det` - If `true`, uses deterministic signing;
+    ///           otherwise, uses hedged signing.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - The context exceeds 255 bytes.
+    /// - Randomness generation fails when hedged mode is requested.
+    /// - The underlying signing function fails.
+    pub fn try_sign_with_ctx(
+        &self,
+        msg: &[u8],
+        ctx: &[u8],
+        det: bool,
+    ) -> Result<Signature, signature::Error> {
+        if ctx.len() > 255 {
+            return Err(signature::Error::from_source(format!(
+                "Context length exceeds 255 bytes"
+            )));
+        }
+
+        let mut rnd = [0u8; SIGNING_RANDOMNESS_SIZE];
+        if !det {
+            OsRng.try_fill_bytes(&mut rnd).map_err(|e| {
+                signature::Error::from_source(format!(
+                    "Error while genrating randomness: {e:?}"
+                ))
+            })?;
+        }
+        let sig = ml_dsa_44::sign(&self.0, msg, ctx, rnd).map_err(|e| {
             signature::Error::from_source(format!(
                 "ML-DSA-44 signing failed: {e:?}"
             ))

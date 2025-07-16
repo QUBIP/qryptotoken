@@ -13,7 +13,6 @@ use crate::object::*;
 use crate::{attr_element, err_rv, to_rv};
 use crate::{bytes_to_vec, cast_params, error::*};
 use once_cell::sync::Lazy;
-use signature::{Signer, Verifier};
 use std::fmt::Debug;
 
 #[cfg(test)]
@@ -407,7 +406,7 @@ pub fn register(mechs: &mut Mechanisms, ot: &mut ObjectFactories) {
         }),
     );
     mechs.add_mechanism(
-        CKM_ML_DSA_KEYGEN,
+        CKM_ML_DSA_KEY_PAIR_GEN,
         Box::new(MlDsaMechanism {
             info: CK_MECHANISM_INFO {
                 ulMinKeySize: MIN_ML_DSA_SIZE_BITS,
@@ -556,7 +555,7 @@ fn mldsa_check_pub_import(obj: &mut Object) -> KResult<()> {
     Ok(())
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct MlDsaSignAddCtx {
     hedge: CK_HEDGE_TYPE,
     ctx: Option<Vec<u8>>,
@@ -605,7 +604,7 @@ struct MlDsaOperation {
     output_len: usize,
     public_key: Option<PubKey>,
     private_key: Option<PrivKey>,
-    sign_ctx: Option<MlDsaSignAddCtx>,
+    sign_ctx: MlDsaSignAddCtx,
     finalized: bool,
     data: Vec<u8>,
     in_use: bool,
@@ -633,7 +632,7 @@ impl MlDsaOperation {
             output_len: output_len,
             public_key: None,
             private_key: Some(sk),
-            sign_ctx: Some(sign_ctx),
+            sign_ctx: sign_ctx,
             finalized: false,
             data: Vec::new(),
             in_use: false,
@@ -661,7 +660,7 @@ impl MlDsaOperation {
             output_len: output_len,
             public_key: Some(pk),
             private_key: None,
-            sign_ctx: Some(sign_ctx),
+            sign_ctx: sign_ctx,
             finalized: false,
             data: Vec::new(),
             in_use: false,
@@ -721,14 +720,8 @@ impl Sign for MlDsaOperation {
             _ => return err_rv!(CKR_KEY_HANDLE_INVALID),
         };
 
-        /*
-         * TODO:
-         * Handle here self.sign_ctx unless we change PrivKey sign function
-         * to accept a sign_ctx as parameter
-         */
-
         let sig = private_key
-            .try_sign(&self.data)
+            .try_sign_with_params(&self.data, &self.sign_ctx)
             .map_err(|_| to_rv!(CKR_FUNCTION_FAILED))?;
 
         let encoded_sig = sig.encode();
@@ -780,6 +773,7 @@ impl Verify for MlDsaOperation {
 
         let message = self.data.clone();
         let sig = Signature::decode(signature)?;
+        let sign_ctx = self.sign_ctx.clone();
 
         let public_key = match self.public_key.as_ref() {
             Some(PubKey::MlDsa44(pk)) => PubKey::MlDsa44(pk.clone()),
@@ -788,16 +782,12 @@ impl Verify for MlDsaOperation {
             _ => return err_rv!(CKR_KEY_HANDLE_INVALID),
         };
 
-        /*
-         * TODO:
-         * Handle here self.sign_ctx unless we change the PubKey verify
-         * function to accept a sign_ctx as parameter
-         */
-
         let handle = std::thread::Builder::new()
             .name("verify_thread".into())
             .stack_size(4 * 1024 * 1024)
-            .spawn(move || public_key.verify(&message, &sig))
+            .spawn(move || {
+                public_key.verify_with_params(&message, &sig, &sign_ctx)
+            })
             .map_err(|_| {
                 error!(
                     target: crate::QRYPTOTOKEN_TARGET,
