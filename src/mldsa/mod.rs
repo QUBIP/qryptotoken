@@ -16,7 +16,11 @@ use once_cell::sync::Lazy;
 use std::fmt::Debug;
 
 #[cfg(test)]
-mod tests;
+mod wycheproof;
+
+/*
+#[cfg(test)]
+mod tests; */
 
 const MAX_CTX_LEN: CK_ULONG = 255;
 
