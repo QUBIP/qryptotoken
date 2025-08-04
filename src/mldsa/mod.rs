@@ -1,12 +1,17 @@
 // Copyright (C) 2023-2025 Tampere University
 // See LICENSE.txt file for terms
+mod keymgmt;
+
 use crate::attribute::{from_bool, from_bytes, from_ulong};
-use crate::error::*;
 use crate::interface::*;
 use crate::log::*;
 use crate::mechanism::*;
+use crate::mldsa::keymgmt::{
+    generate_key_pair, sizes::*, PrivKey, PubKey, Signature,
+};
 use crate::object::*;
 use crate::{attr_element, err_rv, to_rv};
+use crate::{bytes_to_vec, cast_params, error::*};
 use once_cell::sync::Lazy;
 use signature::{Signer, Verifier};
 use std::fmt::Debug;
@@ -14,37 +19,7 @@ use std::fmt::Debug;
 #[cfg(test)]
 mod tests;
 
-#[cfg(feature = "libcrux")]
-use crate::adapters::libcrux::mldsa::{generate_key_pair, PrivKey, PubKey};
-
-/*
- * Public constants defining key and signature sizes for each ML-DSA
- * parameter set, according to FIPS-204, section 4, Parameter Sets.
- */
-pub mod sizes {
-    #![allow(dead_code)]
-    use super::*;
-
-    pub(crate) const ML_DSA_44_PK_SIZE: usize = 1312;
-    pub(crate) const ML_DSA_44_SK_SIZE: usize = 2560;
-    pub(crate) const ML_DSA_44_SIG_SIZE: usize = 2420;
-
-    pub(crate) const ML_DSA_65_PK_SIZE: usize = 1952;
-    pub(crate) const ML_DSA_65_SK_SIZE: usize = 4032;
-    pub(crate) const ML_DSA_65_SIG_SIZE: usize = 3309;
-
-    pub(crate) const ML_DSA_87_PK_SIZE: usize = 2592;
-    pub(crate) const ML_DSA_87_SK_SIZE: usize = 4896;
-    pub(crate) const ML_DSA_87_SIG_SIZE: usize = 4627;
-
-    pub(crate) const MIN_ML_DSA_SIZE_BITS: CK_ULONG =
-        (ML_DSA_44_PK_SIZE as CK_ULONG) << 3;
-    pub(crate) const MAX_ML_DSA_SIZE_BITS: CK_ULONG =
-        (ML_DSA_87_SK_SIZE as CK_ULONG) << 3;
-    pub(crate) const ML_DSA_SIGNATURE_SIZE_BITS: CK_ULONG =
-        (ML_DSA_87_SIG_SIZE as CK_ULONG) << 3;
-}
-use sizes::*;
+const MAX_CTX_LEN: CK_ULONG = 255;
 
 /// The ML-DSA Public Key Factory.
 ///
@@ -354,7 +329,7 @@ impl Mechanism for MlDsaMechanism {
         let mut public_key =
             PUBLIC_KEY_FACTORY.default_object_generate(pubkey_template)?;
 
-        /* Ensure the CKA_CLASS atribute is set to CKO_PUBLIC_KEY*/
+        /* Ensure the CKA_CLASS attribute is set to CKO_PUBLIC_KEY*/
         if !public_key
             .check_or_set_attr(from_ulong(CKA_CLASS, CKO_PUBLIC_KEY))?
         {
@@ -395,15 +370,21 @@ impl Mechanism for MlDsaMechanism {
             return err_rv!(CKR_TEMPLATE_INCONSISTENT);
         }
 
-        // TODO: We should check the param_set for the private key too.
+        /* Ensure the parameter set is set and the same for the private key */
+        if !private_key
+            .check_or_set_attr(from_ulong(CKA_PARAMETER_SET, param_set))?
+        {
+            return err_rv!(CKR_TEMPLATE_INCONSISTENT);
+        }
 
-        let (sk, pk) = generate_key_pair(param_set)?;
+        let rnd = [0u8; KEY_GEN_RND_SIZE];
+        let (sk, pk) = generate_key_pair(param_set, Some(rnd))?;
 
         public_key.set_attr(from_ulong(CKA_PARAMETER_SET, param_set))?;
-        public_key.set_attr(from_bytes(CKA_VALUE, pk.as_ref().to_vec()))?;
+        public_key.set_attr(from_bytes(CKA_VALUE, pk.encode()))?;
 
         private_key.set_attr(from_ulong(CKA_PARAMETER_SET, param_set))?;
-        private_key.set_attr(from_bytes(CKA_VALUE, sk.as_ref().to_vec()))?;
+        private_key.set_attr(from_bytes(CKA_VALUE, sk.encode()))?;
 
         default_key_attributes(&mut private_key, mech.mechanism)?;
         default_key_attributes(&mut public_key, mech.mechanism)?;
@@ -448,9 +429,11 @@ pub fn register(mechs: &mut Mechanisms, ot: &mut ObjectFactories) {
 
 /// Helper function that validates a ML-DSA private key object during import.
 ///
-/// This function ensures that required attributes are present and consistent
-/// with the selected ML-DSA parameter set. It checks that the private key
-/// value size matches the declared ML-DSA parameter set.
+/// This function ensures that required attributes are present and valid.
+/// If a seed is provided, it checks that the seed's size matches the expected
+/// size. If no seed is provided, a private key value must be present, and its
+/// size must match the size requirements of the specified ML-DSA parameter
+/// set.
 ///
 /// Returns an error if any attribute is missing or invalid.
 fn mldsa_check_priv_import(obj: &mut Object) -> KResult<()> {
@@ -471,44 +454,46 @@ fn mldsa_check_priv_import(obj: &mut Object) -> KResult<()> {
         }
     };
 
-    /* Ensure CKA_VALUE is present */
-    let private_value = match obj.get_attr_as_bytes(CKA_VALUE) {
-        Ok(v) => v,
-        Err(_) => {
-            crate::error!(
-                target: crate::QRYPTOTOKEN_TARGET,
-                "🦀 CKR_TEMPLATE_INCOMPLETE: missing CKA_VALUE"
-            );
-            return err_rv!(CKR_TEMPLATE_INCOMPLETE);
+    let seed = match obj.get_attr_as_bytes(CKA_SEED) {
+        Ok(s) => {
+            if s.len() != KEY_GEN_RND_SIZE {
+                return err_rv!(CKR_ATTRIBUTE_VALUE_INVALID);
+            }
+            true
         }
+        Err(_) => false,
     };
 
-    /* Bail out if the CKA_VALUE is empty */
-    if private_value.is_empty() {
-        return err_rv!(CKR_ATTRIBUTE_VALUE_INVALID);
-    }
+    let private_value = match obj.get_attr_as_bytes(CKA_VALUE) {
+        Ok(v) => {
+            /* Bail out if the CKA_VALUE is empty */
+            if v.is_empty() {
+                return err_rv!(CKR_ATTRIBUTE_VALUE_INVALID);
+            }
 
-    /*
-     * Ensure that the length of CKA_VALUE matches the expected
-     * length for the given CKA_PARAMETER_SET.
-     */
-    let expected_len = match param_set {
-        CKP_ML_DSA_44 => ML_DSA_44_SK_SIZE,
-        CKP_ML_DSA_65 => ML_DSA_65_SK_SIZE,
-        CKP_ML_DSA_87 => ML_DSA_87_SK_SIZE,
-        _ => return err_rv!(CKR_ATTRIBUTE_VALUE_INVALID),
+            /*
+             * Ensure that the length of CKA_VALUE matches the expected
+             * length for the given CKA_PARAMETER_SET.
+             */
+            let expected_len = PrivKey::output_len(param_set)?;
+            if v.len() != expected_len {
+                crate::error!(
+                    target: crate::QRYPTOTOKEN_TARGET,
+                    "🦀 mldsa_check_priv_import(): the CKA_VALUE length \
+                        doesn't match the expected length for the given \
+                        CKA_PARAMETER_SET",
+                );
+                return err_rv!(CKR_ATTRIBUTE_VALUE_INVALID);
+            }
+            true
+        }
+        Err(_) => false,
     };
 
-    if private_value.len() != expected_len {
-        crate::error!(
-            target: crate::QRYPTOTOKEN_TARGET,
-            "🦀 mldsa_check_priv_import(): the CKA_VALUE length doesn't match \
-             the expected length for the given CKA_PARAMETER_SET",
-        );
-        return err_rv!(CKR_ATTRIBUTE_VALUE_INVALID);
+    if !seed & !private_value {
+        return err_rv!(CKR_TEMPLATE_INCOMPLETE);
     }
 
-    // TODO: waaaaay later, add support for SEED
     Ok(())
 }
 
@@ -558,13 +543,7 @@ fn mldsa_check_pub_import(obj: &mut Object) -> KResult<()> {
      * Ensure that the length of CKA_VALUE matches the expected
      * length for the given CKA_PARAMETER_SET.
      */
-    let expected_len = match param_set {
-        CKP_ML_DSA_44 => ML_DSA_44_PK_SIZE,
-        CKP_ML_DSA_65 => ML_DSA_65_PK_SIZE,
-        CKP_ML_DSA_87 => ML_DSA_87_PK_SIZE,
-        _ => return err_rv!(CKR_ATTRIBUTE_VALUE_INVALID),
-    };
-
+    let expected_len = PubKey::output_len(param_set)?;
     if public_value.len() != expected_len {
         crate::error!(
             target: crate::QRYPTOTOKEN_TARGET,
@@ -578,10 +557,55 @@ fn mldsa_check_pub_import(obj: &mut Object) -> KResult<()> {
 }
 
 #[derive(Debug)]
+struct MlDsaSignAddCtx {
+    hedge: CK_HEDGE_TYPE,
+    ctx: Option<Vec<u8>>,
+}
+impl MlDsaSignAddCtx {
+    pub fn new(mech: &CK_MECHANISM) -> KResult<MlDsaSignAddCtx> {
+        let mut sign_ctx = MlDsaSignAddCtx {
+            hedge: CKH_HEDGE_PREFERRED,
+            ctx: None,
+        };
+
+        if !mech.pParameter.is_null() {
+            match mech.mechanism {
+                CKM_ML_DSA => {
+                    let params = cast_params!(mech, CK_SIGN_ADDITIONAL_CONTEXT);
+                    match params.hedgeVariant {
+                        CKH_HEDGE_PREFERRED
+                        | CKH_HEDGE_REQUIRED
+                        | CKH_DETERMINISTIC_REQUIRED => {
+                            sign_ctx.hedge = params.hedgeVariant;
+                        }
+                        _ => return err_rv!(CKR_MECHANISM_PARAM_INVALID),
+                    }
+
+                    if params.ulContextLen > 0 {
+                        if params.ulContextLen > MAX_CTX_LEN {
+                            return err_rv!(CKR_MECHANISM_PARAM_INVALID);
+                        }
+                        sign_ctx.ctx = Some(bytes_to_vec!(
+                            params.pContext,
+                            params.ulContextLen
+                        ));
+                    }
+                }
+                _ => return err_rv!(CKR_MECHANISM_INVALID),
+            }
+        }
+
+        Ok(sign_ctx)
+    }
+}
+
+#[allow(dead_code)]
+#[derive(Debug)]
 struct MlDsaOperation {
     output_len: usize,
     public_key: Option<PubKey>,
     private_key: Option<PrivKey>,
+    sign_ctx: Option<MlDsaSignAddCtx>,
     finalized: bool,
     data: Vec<u8>,
     in_use: bool,
@@ -589,43 +613,55 @@ struct MlDsaOperation {
 impl MlDsaOperation {
     #[allow(dead_code)]
     pub fn sign_new(
-        _mech: &CK_MECHANISM,
-        _key: &Object,
-        _info: &CK_MECHANISM_INFO,
-    ) -> KResult<Self> {
-        unimplemented!();
-    }
-
-    pub fn verify_new(
-        _mech: &CK_MECHANISM,
+        mech: &CK_MECHANISM,
         key: &Object,
         _info: &CK_MECHANISM_INFO,
     ) -> KResult<Self> {
-        let output_len = match make_output_length_from_obj(key) {
-            Ok(l) => l,
-            Err(e) => {
-                crate::error!(
-                    target: crate::QRYPTOTOKEN_TARGET,
-                    "️🦀 Error retrieving output length from object: {e:?}"
-                );
-                return Err(e);
+        let sign_ctx = MlDsaSignAddCtx::new(mech)?;
+
+        let param_set = match key.get_attr_as_ulong(CKA_PARAMETER_SET) {
+            Ok(p) => p,
+            Err(_) => {
+                return err_rv!(CKR_TEMPLATE_INCOMPLETE);
             }
         };
-        let private_key: Option<PrivKey> = None;
-        let public_key = match PubKey::try_from(key) {
-            Ok(pk) => Some(pk),
-            Err(e) => {
-                crate::error!(
-                    target: crate::QRYPTOTOKEN_TARGET,
-                    "️🦀 Error converting from object to PubKey: {e:?}"
-                );
-                return Err(e);
-            }
-        };
+
+        let sk = PrivKey::decode(key)?;
+        let output_len = PrivKey::signature_len(param_set)?;
+
         Ok(MlDsaOperation {
-            output_len,
-            public_key,
-            private_key,
+            output_len: output_len,
+            public_key: None,
+            private_key: Some(sk),
+            sign_ctx: Some(sign_ctx),
+            finalized: false,
+            data: Vec::new(),
+            in_use: false,
+        })
+    }
+
+    pub fn verify_new(
+        mech: &CK_MECHANISM,
+        key: &Object,
+        _info: &CK_MECHANISM_INFO,
+    ) -> KResult<Self> {
+        let sign_ctx = MlDsaSignAddCtx::new(mech)?;
+
+        let param_set = match key.get_attr_as_ulong(CKA_PARAMETER_SET) {
+            Ok(p) => p,
+            Err(_) => {
+                return err_rv!(CKR_TEMPLATE_INCOMPLETE);
+            }
+        };
+
+        let pk = PubKey::decode(key)?;
+        let output_len = PrivKey::signature_len(param_set)?;
+
+        Ok(MlDsaOperation {
+            output_len: output_len,
+            public_key: Some(pk),
+            private_key: None,
+            sign_ctx: Some(sign_ctx),
             finalized: false,
             data: Vec::new(),
             in_use: false,
@@ -678,25 +714,24 @@ impl Sign for MlDsaOperation {
         }
         self.finalized = true;
 
-        let signlen = signature.len();
-
         let private_key = match self.private_key.as_ref() {
-            Some(PrivKey::MlDsa44(sk)) => PrivKey::MlDsa44(sk.clone()),
             Some(PrivKey::MlDsa65(sk)) => PrivKey::MlDsa65(sk.clone()),
-            Some(PrivKey::MlDsa87(sk)) => PrivKey::MlDsa87(sk.clone()),
             _ => return err_rv!(CKR_KEY_HANDLE_INVALID),
         };
 
-        let signed_data = private_key
+        /*
+         * TODO:
+         * Handle here self.sign_ctx unless we change PrivKey sign function
+         * to accept a sign_ctx as parameter
+         */
+
+        let sig = private_key
             .try_sign(&self.data)
             .map_err(|_| to_rv!(CKR_FUNCTION_FAILED))?;
 
-        let encoded_signature: &[u8] = signed_data.as_ref();
+        let encoded_sig = sig.encode();
+        signature[..encoded_sig.len()].copy_from_slice(&encoded_sig);
 
-        if encoded_signature.len() != signlen {
-            return err_rv!(CKR_BUFFER_TOO_SMALL);
-        }
-        signature.copy_from_slice(encoded_signature);
         Ok(())
     }
 
@@ -741,24 +776,24 @@ impl Verify for MlDsaOperation {
         }
         self.finalized = true;
 
+        let message = self.data.clone();
+        let sig = Signature::decode(signature)?;
+
         let public_key = match self.public_key.as_ref() {
-            Some(PubKey::MlDsa44(pk)) => PubKey::MlDsa44(pk.clone()),
             Some(PubKey::MlDsa65(pk)) => PubKey::MlDsa65(pk.clone()),
-            Some(PubKey::MlDsa87(pk)) => PubKey::MlDsa87(pk.clone()),
             _ => return err_rv!(CKR_KEY_HANDLE_INVALID),
         };
-        let message = self.data.clone();
-        let signature = signature.to_vec();
+
+        /*
+         * TODO:
+         * Handle here self.sign_ctx unless we change the PubKey verify
+         * function to accept a sign_ctx as parameter
+         */
 
         let handle = std::thread::Builder::new()
-            .name("mldsa_verify_thread".into())
+            .name("verify_thread".into())
             .stack_size(4 * 1024 * 1024)
-            .spawn(move || {
-                let result = public_key
-                    .verify(&message, &signature)
-                    .map_err(|_| to_rv!(CKR_SIGNATURE_INVALID));
-                result
-            })
+            .spawn(move || public_key.verify(&message, &sig))
             .map_err(|_| {
                 error!(
                     target: crate::QRYPTOTOKEN_TARGET,
@@ -767,7 +802,7 @@ impl Verify for MlDsaOperation {
                 to_rv!(CKR_FUNCTION_FAILED)
             })?;
 
-        let ret = handle
+        let _ = handle
             .join()
             .map_err(|_| {
                 error!(
@@ -775,26 +810,18 @@ impl Verify for MlDsaOperation {
                     "Thread panicked during verification"
                 );
                 to_rv!(CKR_FUNCTION_FAILED)
-            })?
+            })
             .map_err(|e| {
                 error!(
                     target: crate::QRYPTOTOKEN_TARGET,
                     "Verification failed: {e:?}"
                 );
                 to_rv!(CKR_SIGNATURE_INVALID)
-            });
-
-        if ret.is_err() {
-            error!(
-                target: crate::QRYPTOTOKEN_TARGET,
-                "Internal verification failure"
-            );
-            return ret;
-        }
+            })?;
 
         debug!(
             target: crate::QRYPTOTOKEN_TARGET,
-            "🦀 👌👌👌 Verification succesful!"
+            "🦀 👌👌👌 Verification successful!"
         );
 
         Ok(())
@@ -803,38 +830,4 @@ impl Verify for MlDsaOperation {
     fn signature_len(&self) -> KResult<usize> {
         Ok(self.output_len)
     }
-}
-
-/// Determines the expected signature output length based on the provided
-/// public key object.
-///
-/// # Parameters
-///
-/// - `obj`: A reference to a PKCS#11 `Object`.
-///
-/// # Returns
-///
-/// - `Ok(usize)`: The expected signature length in bytes for the given key
-///                type.
-/// - `Err(CK_RV)`: Returns `CKR_ATTRIBUTE_VALUE_INVALID` if the parameter set
-///                 is invalid.
-///                 Returns `CKR_TEMPLATE_INCONSISTENT` if an attribute is
-///                 missing.
-fn make_output_length_from_obj(obj: &Object) -> KResult<usize> {
-    let param_set = match obj.get_attr_as_ulong(CKA_PARAMETER_SET) {
-        Ok(p) => match p {
-            CKP_ML_DSA_44 | CKP_ML_DSA_65 | CKP_ML_DSA_87 => p,
-            _ => return err_rv!(CKR_ATTRIBUTE_VALUE_INVALID),
-        },
-        Err(_) => return err_rv!(CKR_TEMPLATE_INCONSISTENT),
-    };
-
-    let output_len = match param_set {
-        CKP_ML_DSA_44 => ML_DSA_44_SIG_SIZE as usize,
-        CKP_ML_DSA_65 => ML_DSA_65_SIG_SIZE as usize,
-        CKP_ML_DSA_87 => ML_DSA_87_SIG_SIZE as usize,
-        _ => return err_rv!(CKR_ATTRIBUTE_VALUE_INVALID),
-    };
-
-    Ok(output_len)
 }

@@ -1,0 +1,274 @@
+use crate::error::*;
+use crate::interface::*;
+use crate::object::*;
+use crate::{err_rv, to_rv};
+use libcrux_ml_dsa::KEY_GENERATION_RANDOMNESS_SIZE;
+use signature::{Signer, Verifier};
+
+#[cfg(feature = "libcrux")]
+use crate::adapters::libcrux::mldsa::{
+    mldsa65::{
+        generate_key_pair as generate_mldsa65_key_pair, sizes::*,
+        PrivKey as MlDsa65PrivKey, PubKey as MlDsa65PubKey,
+        Signature as MlDsa65Signature,
+    }
+};
+
+pub mod sizes {
+    #![allow(dead_code)]
+    use super::*;
+
+    pub(crate) const MIN_ML_DSA_SIZE_BITS: CK_ULONG =
+        (ML_DSA_65_PK_SIZE as CK_ULONG) << 3;
+    pub(crate) const MAX_ML_DSA_SIZE_BITS: CK_ULONG =
+        (ML_DSA_65_SK_SIZE as CK_ULONG) << 3;
+    pub(crate) const KEY_GEN_RND_SIZE: usize = KEY_GENERATION_RANDOMNESS_SIZE;
+}
+use sizes::*;
+
+pub enum PubKey {
+    MlDsa65(MlDsa65PubKey),
+}
+
+pub enum PrivKey {
+    MlDsa65(MlDsa65PrivKey),
+}
+
+pub enum Signature {
+    MlDsa65(MlDsa65Signature),
+}
+
+impl std::fmt::Debug for PubKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            PubKey::MlDsa65(pk) => f
+                .debug_struct("PubKey::MlDsa65")
+                .field("value", pk)
+                .finish()
+        }
+    }
+}
+
+impl std::fmt::Debug for PrivKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            PrivKey::MlDsa65(sk) => f
+                .debug_struct("PrivKey::MlDsa65")
+                .field("value", &sk)
+                .finish()
+        }
+    }
+}
+
+#[allow(dead_code)]
+impl Signature {
+    pub fn encode(&self) -> Vec<u8> {
+        match self {
+            Signature::MlDsa65(sig) => sig.encode()
+        }
+    }
+
+    pub fn decode(bytes: &[u8]) -> KResult<Self> {
+        let res = match bytes.len() {
+            ML_DSA_65_SIG_SIZE => {
+                let sig = MlDsa65Signature::decode(bytes).map_err(|e| {
+                    log::error!("Decode error: {e:?}");
+                    to_rv!(CKR_SIGNATURE_LEN_RANGE)
+                })?;
+                Signature::MlDsa65(sig)
+            }
+            _ => return err_rv!(CKR_SIGNATURE_LEN_RANGE),
+        };
+
+        Ok(res)
+    }
+
+    pub const fn output_len(&self) -> usize {
+        match self {
+            Signature::MlDsa65(_) => ML_DSA_65_SIG_SIZE
+        }
+    }
+}
+
+#[allow(dead_code)]
+impl PubKey {
+    pub fn encode(&self) -> Vec<u8> {
+        match self {
+            PubKey::MlDsa65(pk) => pk.encode()
+        }
+    }
+
+    pub fn decode(obj: &Object) -> KResult<Self> {
+        let pk_bytes = match obj.get_attr_as_bytes(CKA_VALUE) {
+            Ok(val) => val,
+            Err(_) => return err_rv!(CKR_TEMPLATE_INCONSISTENT),
+        };
+
+        let param_set = match obj.get_attr_as_ulong(CKA_PARAMETER_SET) {
+            Ok(p) => p,
+            Err(_) => return err_rv!(CKR_TEMPLATE_INCONSISTENT),
+        };
+
+        let res = match param_set {
+            CKP_ML_DSA_65 => {
+                let pk = MlDsa65PubKey::decode(pk_bytes).map_err(|e| {
+                    log::error!("Decode error: {e:?}");
+                    to_rv!(CKR_ATTRIBUTE_VALUE_INVALID)
+                })?;
+
+                PubKey::MlDsa65(pk)
+            }
+            _ => return err_rv!(CKR_ATTRIBUTE_VALUE_INVALID),
+        };
+
+        Ok(res)
+    }
+
+    pub const fn output_len(param_set: CK_ULONG) -> KResult<usize> {
+        let len = match param_set {
+            CKP_ML_DSA_65 => ML_DSA_65_PK_SIZE,
+            _ => return err_rv!(CKR_ATTRIBUTE_VALUE_INVALID),
+        };
+
+        Ok(len)
+    }
+
+    pub const fn signature_len(param_set: CK_ULONG) -> KResult<usize> {
+        let len = match param_set {
+            CKP_ML_DSA_65 => ML_DSA_65_SIG_SIZE,
+            _ => return err_rv!(CKR_ATTRIBUTE_VALUE_INVALID),
+        };
+
+        Ok(len)
+    }
+}
+
+impl Verifier<Signature> for PubKey {
+    fn verify(
+        &self,
+        msg: &[u8],
+        signature: &Signature,
+    ) -> Result<(), signature::Error> {
+        let res = match (self, signature) {
+            (PubKey::MlDsa65(pk), Signature::MlDsa65(sig)) => {
+                pk.verify(msg, sig)
+            }
+            _ => Err(signature::Error::from_source(
+                "Mismatched key and signature types",
+            )),
+        };
+
+        res.map_err(|e| signature::Error::from_source(e))
+    }
+}
+
+impl PrivKey {
+    pub fn encode(&self) -> Vec<u8> {
+        match self {
+            PrivKey::MlDsa65(sk) => sk.encode()
+        }
+    }
+
+    pub fn decode(obj: &Object) -> KResult<Self> {
+        let param_set = match obj.get_attr_as_ulong(CKA_PARAMETER_SET) {
+            Ok(p) => p,
+            Err(_) => return err_rv!(CKR_TEMPLATE_INCONSISTENT),
+        };
+
+        if let Ok(seed) = obj.get_attr_as_bytes(CKA_SEED) {
+            let seed: [u8; KEY_GEN_RND_SIZE] = seed
+                .as_slice()
+                .try_into()
+                .map_err(|_| to_rv!(CKR_ATTRIBUTE_VALUE_INVALID))?;
+            let (sk, _) = generate_key_pair(param_set, Some(seed))?;
+            return Ok(sk);
+        }
+
+        let sk_bytes = match obj.get_attr_as_bytes(CKA_VALUE) {
+            Ok(val) => val,
+            Err(_) => return err_rv!(CKR_TEMPLATE_INCONSISTENT),
+        };
+
+        let res = match param_set {
+            CKP_ML_DSA_65 => {
+                let sk = MlDsa65PrivKey::decode(sk_bytes).map_err(|e| {
+                    log::error!("Decode error: {e:?}");
+                    to_rv!(CKR_ATTRIBUTE_VALUE_INVALID)
+                })?;
+
+                PrivKey::MlDsa65(sk)
+            }
+            _ => return err_rv!(CKR_ATTRIBUTE_VALUE_INVALID),
+        };
+
+        Ok(res)
+    }
+
+    pub const fn output_len(param_set: CK_ULONG) -> KResult<usize> {
+        let len = match param_set {
+            CKP_ML_DSA_65 => ML_DSA_65_SK_SIZE,
+            _ => return err_rv!(CKR_ATTRIBUTE_VALUE_INVALID),
+        };
+
+        Ok(len)
+    }
+
+    pub const fn signature_len(param_set: CK_ULONG) -> KResult<usize> {
+        let len = match param_set {
+            CKP_ML_DSA_65 => ML_DSA_65_SIG_SIZE,
+            _ => return err_rv!(CKR_ATTRIBUTE_VALUE_INVALID),
+        };
+
+        Ok(len)
+    }
+}
+
+impl Signer<Signature> for PrivKey {
+    fn try_sign(&self, msg: &[u8]) -> Result<Signature, signature::Error> {
+        /* By default perform hedged signatures */
+        match self {
+            PrivKey::MlDsa65(sk) => {
+                let sig = sk.try_sign(msg)?;
+                Ok(Signature::MlDsa65(sig))
+            }
+        }
+    }
+}
+
+/// Generates an ML-DSA key pair for the specified parameter set.
+///
+/// # Parameters
+///
+/// - `param_set`: The ML-DSA parameter set to use for key generation.
+///                Must be one of the supported ones:
+///                 - `CKP_ML_DSA_65`
+///
+/// - `rnd`: An optional fixed-size random byte array used as a seed for
+///          deterministic key generation. If `None`, a randomness source is
+///          used internally to generate the key pair.
+///
+/// # Returns
+///
+/// A `KResult(PrivKey, PubKey)` if the key pair is generated successfully.
+///
+/// # Errors
+///
+/// Returns:
+/// - `CKR_FUNCTION_FAILED` if key generation fails internally for the
+///                         selected parameter set.
+/// - `CKR_ATTRIBUTE_VALUE_INVALID` if the parameter set is not recognized.
+pub fn generate_key_pair(
+    param_set: CK_ULONG,
+    rnd: Option<[u8; KEY_GEN_RND_SIZE]>,
+) -> KResult<(PrivKey, PubKey)> {
+    match param_set {
+        CKP_ML_DSA_65 => {
+            let (sk, pk) = generate_mldsa65_key_pair(rnd).map_err(|e| {
+                log::error!("ML-DSA-65 key pair generation error: {e:?}");
+                to_rv!(CKR_FUNCTION_FAILED)
+            })?;
+            Ok((PrivKey::MlDsa65(sk), PubKey::MlDsa65(pk)))
+        }
+        _ => return err_rv!(CKR_ATTRIBUTE_VALUE_INVALID),
+    }
+}

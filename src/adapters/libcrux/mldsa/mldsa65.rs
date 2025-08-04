@@ -1,0 +1,194 @@
+use libcrux_ml_dsa::{
+    ml_dsa_65::{
+        self, MLDSA65Signature, MLDSA65SigningKey, MLDSA65VerificationKey,
+    },
+    KEY_GENERATION_RANDOMNESS_SIZE, SIGNING_RANDOMNESS_SIZE,
+};
+use rand_core::{OsRng, TryRngCore};
+use signature::{Signer, Verifier};
+use std::error::Error;
+
+#[derive(Clone)]
+pub struct PubKey(Box<MLDSA65VerificationKey>);
+
+#[derive(Clone)]
+pub struct PrivKey(Box<MLDSA65SigningKey>);
+
+pub struct Signature(Box<MLDSA65Signature>);
+
+pub mod sizes {
+    #![allow(dead_code)]
+    use super::*;
+
+    pub(crate) const ML_DSA_65_PK_SIZE: usize = PubKey::output_len();
+    pub(crate) const ML_DSA_65_SK_SIZE: usize = PrivKey::output_len();
+    pub(crate) const ML_DSA_65_SIG_SIZE: usize = Signature::output_len();
+}
+
+impl std::fmt::Debug for PubKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PubKey")
+            .field("Public value", &self.0.as_slice())
+            .finish()
+    }
+}
+
+impl std::fmt::Debug for PrivKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PrivKey")
+            .field("Private value", &self.0.as_slice())
+            .finish()
+    }
+}
+
+impl std::fmt::Debug for Signature {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Signature")
+            .field("Signature value", &self.0.as_slice())
+            .finish()
+    }
+}
+
+impl Signature {
+    pub fn encode(&self) -> Vec<u8> {
+        self.0.as_slice().to_vec()
+    }
+
+    pub fn decode(bytes: &[u8]) -> Result<Self, Box<dyn Error>> {
+        if bytes.len() != Self::output_len() {
+            return Err(format!(
+                "Invalid ML-DSA-65 signature length: expected {}, got {}",
+                Self::output_len(),
+                bytes.len()
+            )
+            .into());
+        }
+        let sig = MLDSA65Signature::new(bytes.try_into()?);
+
+        Ok(Self(Box::new(sig)))
+    }
+
+    const fn output_len() -> usize {
+        MLDSA65Signature::len()
+    }
+}
+
+impl PubKey {
+    pub fn encode(&self) -> Vec<u8> {
+        self.0.as_slice().to_vec()
+    }
+
+    pub fn decode(bytes: &[u8]) -> Result<Self, Box<dyn Error>> {
+        if bytes.len() != Self::output_len() {
+            return Err(format!(
+                "Invalid ML-DSA-65 public key length: expected {}, got {}",
+                Self::output_len(),
+                bytes.len()
+            )
+            .into());
+        }
+        let pk = MLDSA65VerificationKey::new(bytes.try_into()?);
+
+        Ok(Self(Box::new(pk)))
+    }
+
+    const fn output_len() -> usize {
+        MLDSA65VerificationKey::len()
+    }
+}
+
+impl Verifier<Signature> for PubKey {
+    fn verify(
+        &self,
+        msg: &[u8],
+        signature: &Signature,
+    ) -> Result<(), signature::Error> {
+        ml_dsa_65::verify(&self.0, msg, &[], &signature.0).map_err(|e| {
+            signature::Error::from_source(format!(
+                "ML-DSA-65 signature verification failed: {e:?}"
+            ))
+        })?;
+
+        Ok(())
+    }
+}
+
+impl PrivKey {
+    pub fn encode(&self) -> Vec<u8> {
+        self.0.as_slice().to_vec()
+    }
+
+    pub fn decode(bytes: &[u8]) -> Result<Self, Box<dyn Error>> {
+        if bytes.len() != Self::output_len() {
+            return Err(format!(
+                "Invalid ML-DSA-65 private key length: expected {}, got {}",
+                Self::output_len(),
+                bytes.len()
+            )
+            .into());
+        }
+        let sk = MLDSA65SigningKey::new(bytes.try_into()?);
+
+        Ok(Self(Box::new(sk)))
+    }
+
+    const fn output_len() -> usize {
+        MLDSA65SigningKey::len()
+    }
+}
+
+impl Signer<Signature> for PrivKey {
+    fn try_sign(&self, msg: &[u8]) -> Result<Signature, signature::Error> {
+        let mut rnd = [0u8; SIGNING_RANDOMNESS_SIZE];
+
+        OsRng.try_fill_bytes(&mut rnd).map_err(|e| {
+            signature::Error::from_source(format!(
+                "Error while genrating randomness: {e:?}"
+            ))
+        })?;
+
+        let sig = ml_dsa_65::sign(&self.0, msg, &[], rnd).map_err(|e| {
+            signature::Error::from_source(format!(
+                "ML-DSA-65 signing failed: {e:?}"
+            ))
+        })?;
+
+        Ok(Signature(Box::new(sig)))
+    }
+}
+
+/// Generates an ML-DSA-65 key pair.
+///
+/// # Arguments
+///
+/// * `rnd` - Optional 32-byte array to use as deterministic randomness seed.
+///           Pass `None` to generate fresh randomness by default.
+///
+/// # Returns
+///
+/// * `Ok((PrivKey, PubKey))` on success, with a tuple containing the generated
+///                           key pair.
+/// * `Err(Box<dyn Error>)` if key pair or randomness generation fails.
+pub fn generate_key_pair(
+    rnd: Option<[u8; KEY_GENERATION_RANDOMNESS_SIZE]>,
+) -> Result<(PrivKey, PubKey), Box<dyn Error>> {
+    let randomness = match rnd {
+        Some(v) => v,
+        None => {
+            let mut rnd = [0u8; KEY_GENERATION_RANDOMNESS_SIZE];
+            OsRng
+                .try_fill_bytes(&mut rnd)
+                .map_err(|e| -> Box<dyn Error> {
+                    format!("Error while generating randomness: {e:?}").into()
+                })?;
+            rnd
+        }
+    };
+
+    let pair = ml_dsa_65::generate_key_pair(randomness);
+
+    let sk = PrivKey(Box::new(pair.signing_key));
+    let pk = PubKey(Box::new(pair.verification_key));
+
+    Ok((sk, pk))
+}
