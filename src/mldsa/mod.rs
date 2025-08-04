@@ -715,7 +715,9 @@ impl Sign for MlDsaOperation {
         self.finalized = true;
 
         let private_key = match self.private_key.as_ref() {
+            Some(PrivKey::MlDsa44(sk)) => PrivKey::MlDsa44(sk.clone()),
             Some(PrivKey::MlDsa65(sk)) => PrivKey::MlDsa65(sk.clone()),
+            Some(PrivKey::MlDsa87(sk)) => PrivKey::MlDsa87(sk.clone()),
             _ => return err_rv!(CKR_KEY_HANDLE_INVALID),
         };
 
@@ -780,7 +782,9 @@ impl Verify for MlDsaOperation {
         let sig = Signature::decode(signature)?;
 
         let public_key = match self.public_key.as_ref() {
+            Some(PubKey::MlDsa44(pk)) => PubKey::MlDsa44(pk.clone()),
             Some(PubKey::MlDsa65(pk)) => PubKey::MlDsa65(pk.clone()),
+            Some(PubKey::MlDsa87(pk)) => PubKey::MlDsa87(pk.clone()),
             _ => return err_rv!(CKR_KEY_HANDLE_INVALID),
         };
 
