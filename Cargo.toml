@@ -54,6 +54,7 @@ libcrux-ml-dsa = { git = "https://github.com/cryspen/libcrux.git", rev = "b80be5
 slh-dsa = "0.0.3"
 libcrux-ed25519 = { version = "0.0.2", features = ["rand"] }
 base64 = "0.22.1"
+thiserror = "2.0.12"
 
 
 [features]

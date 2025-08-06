@@ -1,3 +1,4 @@
+use crate::adapters::error::{AResult, AdapterError};
 use libcrux_ml_dsa::{
     ml_dsa_87::{
         self, MLDSA87Signature, MLDSA87SigningKey, MLDSA87VerificationKey,
@@ -6,7 +7,6 @@ use libcrux_ml_dsa::{
 };
 use rand_core::{OsRng, TryRngCore};
 use signature::{Signer, Verifier};
-use std::error::Error;
 
 #[derive(Clone)]
 pub struct PubKey(Box<MLDSA87VerificationKey>);
@@ -54,14 +54,12 @@ impl Signature {
         self.0.as_slice().to_vec()
     }
 
-    pub fn decode(bytes: &[u8]) -> Result<Self, Box<dyn Error>> {
+    pub fn decode(bytes: &[u8]) -> AResult<Self> {
         if bytes.len() != Self::output_len() {
-            return Err(format!(
-                "Invalid ML-DSA-87 signature length: expected {}, got {}",
-                Self::output_len(),
-                bytes.len()
-            )
-            .into());
+            return Err(AdapterError::InvalidSignatureLen {
+                expected: Self::output_len(),
+                actual: bytes.len(),
+            });
         }
         let sig = MLDSA87Signature::new(bytes.try_into()?);
 
@@ -78,14 +76,12 @@ impl PubKey {
         self.0.as_slice().to_vec()
     }
 
-    pub fn decode(bytes: &[u8]) -> Result<Self, Box<dyn Error>> {
+    pub fn decode(bytes: &[u8]) -> AResult<Self> {
         if bytes.len() != Self::output_len() {
-            return Err(format!(
-                "Invalid ML-DSA-87 public key length: expected {}, got {}",
-                Self::output_len(),
-                bytes.len()
-            )
-            .into());
+            return Err(AdapterError::InvalidKeyLen {
+                expected: Self::output_len(),
+                actual: bytes.len(),
+            });
         }
         let pk = MLDSA87VerificationKey::new(bytes.try_into()?);
 
@@ -104,8 +100,8 @@ impl Verifier<Signature> for PubKey {
         signature: &Signature,
     ) -> Result<(), signature::Error> {
         ml_dsa_87::verify(&self.0, msg, &[], &signature.0).map_err(|e| {
-            signature::Error::from_source(format!(
-                "ML-DSA-87 signature verification failed: {e:?}"
+            signature::Error::from_source(AdapterError::VerificationError(
+                format!("ML-DSA-87 signature verification failed: {e:?}"),
             ))
         })?;
 
@@ -131,9 +127,18 @@ impl PubKey {
         signature: &Signature,
         ctx: &[u8],
     ) -> Result<(), signature::Error> {
+        if ctx.len() > 255 {
+            return Err(signature::Error::from_source(
+                AdapterError::ContextTooLong {
+                    max: 255,
+                    actual: ctx.len(),
+                },
+            ));
+        }
+
         ml_dsa_87::verify(&self.0, msg, ctx, &signature.0).map_err(|e| {
-            signature::Error::from_source(format!(
-                "ML-DSA-87 signature verification failed: {e:?}"
+            signature::Error::from_source(AdapterError::VerificationError(
+                format!("ML-DSA-87 signature verification failed: {e:?}"),
             ))
         })?;
 
@@ -146,14 +151,12 @@ impl PrivKey {
         self.0.as_slice().to_vec()
     }
 
-    pub fn decode(bytes: &[u8]) -> Result<Self, Box<dyn Error>> {
+    pub fn decode(bytes: &[u8]) -> AResult<Self> {
         if bytes.len() != Self::output_len() {
-            return Err(format!(
-                "Invalid ML-DSA-87 private key length: expected {}, got {}",
-                Self::output_len(),
-                bytes.len()
-            )
-            .into());
+            return Err(AdapterError::InvalidKeyLen {
+                expected: Self::output_len(),
+                actual: bytes.len(),
+            });
         }
         let sk = MLDSA87SigningKey::new(bytes.try_into()?);
 
@@ -169,16 +172,14 @@ impl Signer<Signature> for PrivKey {
     fn try_sign(&self, msg: &[u8]) -> Result<Signature, signature::Error> {
         let mut rnd = [0u8; SIGNING_RANDOMNESS_SIZE];
 
-        OsRng.try_fill_bytes(&mut rnd).map_err(|e| {
-            signature::Error::from_source(format!(
-                "Error while genrating randomness: {e:?}"
-            ))
-        })?;
+        OsRng
+            .try_fill_bytes(&mut rnd)
+            .map_err(|e| AdapterError::RandomnessError(e))?;
 
         let sig = ml_dsa_87::sign(&self.0, msg, &[], rnd).map_err(|e| {
-            signature::Error::from_source(format!(
+            signature::Error::from_source(AdapterError::SigningError(format!(
                 "ML-DSA-87 signing failed: {e:?}"
-            ))
+            )))
         })?;
 
         Ok(Signature(Box::new(sig)))
@@ -210,23 +211,24 @@ impl PrivKey {
     ) -> Result<Signature, signature::Error> {
         if ctx.len() > 255 {
             return Err(signature::Error::from_source(
-                "Context length exceeds 255 bytes",
+                AdapterError::ContextTooLong {
+                    max: 255,
+                    actual: ctx.len(),
+                },
             ));
         }
 
         let mut rnd = [0u8; SIGNING_RANDOMNESS_SIZE];
         if !det {
             OsRng.try_fill_bytes(&mut rnd).map_err(|e| {
-                signature::Error::from_source(format!(
-                    "Error while generating randomness: {e:?}"
-                ))
+                signature::Error::from_source(AdapterError::RandomnessError(e))
             })?;
         }
 
         let sig = ml_dsa_87::sign(&self.0, msg, ctx, rnd).map_err(|e| {
-            signature::Error::from_source(format!(
+            signature::Error::from_source(AdapterError::SigningError(format!(
                 "ML-DSA-87 signing failed: {e:?}"
-            ))
+            )))
         })?;
 
         Ok(Signature(Box::new(sig)))
@@ -244,19 +246,17 @@ impl PrivKey {
 ///
 /// * `Ok((PrivKey, PubKey))` on success, with a tuple containing the generated
 ///                           key pair.
-/// * `Err(Box<dyn Error>)` if key pair or randomness generation fails.
+/// * `Err(AdapterError)` if key pair or randomness generation fails.
 pub fn generate_key_pair(
     rnd: Option<[u8; KEY_GENERATION_RANDOMNESS_SIZE]>,
-) -> Result<(PrivKey, PubKey), Box<dyn Error>> {
+) -> AResult<(PrivKey, PubKey)> {
     let randomness = match rnd {
         Some(v) => v,
         None => {
             let mut rnd = [0u8; KEY_GENERATION_RANDOMNESS_SIZE];
             OsRng
                 .try_fill_bytes(&mut rnd)
-                .map_err(|e| -> Box<dyn Error> {
-                    format!("Error while generating randomness: {e:?}").into()
-                })?;
+                .map_err(|e| AdapterError::RandomnessError(e))?;
             rnd
         }
     };
