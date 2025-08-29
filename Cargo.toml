@@ -1,6 +1,6 @@
 [package]
 name = "qryptotoken"
-version = "0.3.0-dev"
+version = "0.3.0"
 edition = "2021"
 
 [lib]
@@ -42,7 +42,7 @@ serde_json = "1.0.104"
 serial_test = "3.1.1"
 sha1 = "0.10.6"
 sha2 = "0.10.8"
-signature = { version  = "2.2.0", features = ["std"] }
+signature = { version = "2.2.0", features = ["std"] }
 uuid = { version = "1.4.1", features = ["v4"] }
 zeroize = "1.6.0"
 log = "0.4.22"

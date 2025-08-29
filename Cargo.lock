@@ -1131,7 +1131,7 @@ dependencies = [
 
 [[package]]
 name = "qryptotoken"
-version = "0.3.0-dev"
+version = "0.3.0"
 dependencies = [
  "aes-gcm",
  "aes-kw",
