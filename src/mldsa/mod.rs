@@ -14,6 +14,7 @@ use crate::{attr_element, err_rv, to_rv};
 use crate::{bytes_to_vec, cast_params, error::*};
 use once_cell::sync::Lazy;
 use std::fmt::Debug;
+use std::sync::Arc;
 
 #[cfg(test)]
 mod wycheproof;
@@ -606,7 +607,7 @@ impl MlDsaSignAddCtx {
 #[derive(Debug)]
 struct MlDsaOperation {
     output_len: usize,
-    public_key: Option<PubKey>,
+    public_key: Option<Arc<PubKey>>,
     private_key: Option<PrivKey>,
     sign_ctx: MlDsaSignAddCtx,
     finalized: bool,
@@ -662,7 +663,7 @@ impl MlDsaOperation {
 
         Ok(MlDsaOperation {
             output_len: output_len,
-            public_key: Some(pk),
+            public_key: Some(pk.into()),
             private_key: None,
             sign_ctx: sign_ctx,
             finalized: false,
@@ -779,10 +780,8 @@ impl Verify for MlDsaOperation {
         let sig = Signature::decode(signature)?;
         let sign_ctx = self.sign_ctx.clone();
 
-        let public_key = match self.public_key.as_ref() {
-            Some(PubKey::MlDsa44(pk)) => PubKey::MlDsa44(pk.clone()),
-            Some(PubKey::MlDsa65(pk)) => PubKey::MlDsa65(pk.clone()),
-            Some(PubKey::MlDsa87(pk)) => PubKey::MlDsa87(pk.clone()),
+        let public_key = match &self.public_key {
+            Some(pk) => Arc::clone(pk),
             _ => return err_rv!(CKR_KEY_HANDLE_INVALID),
         };
 
