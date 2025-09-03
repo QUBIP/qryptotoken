@@ -82,7 +82,7 @@ fn test_token_null_args(name: &str) {
 #[test]
 #[serial]
 fn test_token_datadir() {
-    let testdir = "test/kryoptic";
+    let testdir = "test/qryptotoken";
     std::fs::create_dir_all(testdir).unwrap();
     let name = format!("{}/{}", testdir, DEFAULT_CONF_NAME);
     let mut testtokn = TestToken::new(&name, true);

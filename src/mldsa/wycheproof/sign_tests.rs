@@ -1,9 +1,8 @@
-use super::reader::*;
-use super::sign_schema::*;
 use crate::adapters::error::*;
 use crate::mldsa::wycheproof::mldsa_variant::MLDsaSignVariant;
-use hex::decode;
 use std::error::Error;
+use wycheproof::mldsa_sign::{self, *};
+use wycheproof::TestResult;
 
 pub struct Mldsa44;
 pub struct Mldsa65;
@@ -77,14 +76,14 @@ fn extract_adapter_error(err: &signature::Error) -> Option<&AdapterError> {
     None
 }
 
-fn error_matches_flag(flag: &Flag, err: &AdapterError) -> bool {
+fn error_matches_flag(flag: &TestFlag, err: &AdapterError) -> bool {
     match (flag, err) {
         (
-            Flag::IncorrectPrivateKeyLength,
+            TestFlag::IncorrectPrivateKeyLength,
             AdapterError::InvalidKeyLen { .. },
         ) => true,
-        (Flag::InvalidContext, AdapterError::ContextTooLong { .. }) => true,
-        (Flag::InvalidPrivateKey, AdapterError::SigningError(_)) => true,
+        (TestFlag::InvalidContext, AdapterError::ContextTooLong { .. }) => true,
+        (TestFlag::InvalidPrivateKey, AdapterError::SigningError(_)) => true,
         _ => false,
     }
 }
@@ -102,16 +101,15 @@ fn error_matches_flag(flag: &Flag, err: &AdapterError) -> bool {
 /// the returned error does not match any of the expected flags, we count it
 /// as a failure and mark it as a warning that requires further inspection.
 fn run_mldsa_wycheproof_sign_tests_internal<MlDsaParamSet: MLDsaSignVariant>(
-    path: &str,
+    test_name: TestName,
     det: bool,
 ) {
-    let schema = load_sign_schema_from_file(path)
-        .expect("Failed to load sign test vectors");
-
+    let test_set = mldsa_sign::TestSet::load(test_name)
+        .unwrap_or_else(|e| panic!("Failed to load sign test set: {e}"));
     let mut passed = 0;
     let mut failed = 0;
 
-    for group in &schema.test_groups {
+    for group in test_set.test_groups {
         /*
          * In Wycheproof, each entry in "testGroups" defines a private key that
          * is used for all tests in the associated "tests" array. If the
@@ -124,8 +122,18 @@ fn run_mldsa_wycheproof_sign_tests_internal<MlDsaParamSet: MLDsaSignVariant>(
          * "testGroup". If the private key is valid, we continue and execute
          * all tests within that group.
          */
-        let priv_bytes = decode(&group.private_input)
-            .expect("Failure while decoding privkey hexstring");
+
+        /* Use privseed first, otherwise fallback to privkey */
+        let priv_bytes = group
+            .privseed
+            .as_ref()
+            .or(group.privkey.as_ref())
+            .map(|b| b.as_slice().to_vec())
+            .unwrap_or_else(|| {
+                panic!(
+                    "Neither privateKey nor privateSeed present in test group"
+                )
+            });
 
         let privkey = if priv_bytes.len() == 32 {
             /* Seed case */
@@ -135,7 +143,7 @@ fn run_mldsa_wycheproof_sign_tests_internal<MlDsaParamSet: MLDsaSignVariant>(
                 Ok((sk, _)) => sk,
                 Err(e) => {
                     for test in &group.tests {
-                        if test.result == SignResult::Invalid {
+                        if test.result == TestResult::Invalid {
                             let matched = test
                                 .flags
                                 .iter()
@@ -175,7 +183,7 @@ fn run_mldsa_wycheproof_sign_tests_internal<MlDsaParamSet: MLDsaSignVariant>(
                 Ok(sk) => sk,
                 Err(e) => {
                     for test in &group.tests {
-                        if test.result == SignResult::Invalid {
+                        if test.result == TestResult::Invalid {
                             let matched = test
                                 .flags
                                 .iter()
@@ -212,15 +220,13 @@ fn run_mldsa_wycheproof_sign_tests_internal<MlDsaParamSet: MLDsaSignVariant>(
         };
 
         for test in &group.tests {
-            let msg = decode(&test.msg)
-                .expect("Failure while decoding message hexstring");
-            let ctx = decode(&test.ctx).unwrap_or_default();
-
+            let msg = test.msg.as_ref();
+            let ctx = test.ctx.as_ref().map_or(&[][..], |c| c.as_ref());
             let sig_res =
                 MlDsaParamSet::try_sign_with_ctx(&privkey, &msg, &ctx, det);
 
-            match (&sig_res, &test.result) {
-                (Err(e), SignResult::Invalid) => {
+            match (&sig_res, test.result) {
+                (Err(e), TestResult::Invalid) => {
                     if let Some(adapter_err) = extract_adapter_error(e) {
                         let matched = test
                             .flags
@@ -253,7 +259,7 @@ fn run_mldsa_wycheproof_sign_tests_internal<MlDsaParamSet: MLDsaSignVariant>(
                         failed += 1;
                     }
                 }
-                (Err(e), SignResult::Valid) => {
+                (Err(e), TestResult::Valid) => {
                     println!(
                         "❌ tcId {}: {} — expected Valid, but signing \
                             failed: {:?}",
@@ -261,7 +267,7 @@ fn run_mldsa_wycheproof_sign_tests_internal<MlDsaParamSet: MLDsaSignVariant>(
                     );
                     failed += 1;
                 }
-                (Ok(_), SignResult::Invalid) => {
+                (Ok(_), TestResult::Invalid) => {
                     println!(
                         "❌ tcId {}: {} — expected Invalid, but signing \
                             succeeded",
@@ -269,11 +275,9 @@ fn run_mldsa_wycheproof_sign_tests_internal<MlDsaParamSet: MLDsaSignVariant>(
                     );
                     failed += 1;
                 }
-                (Ok(sig), SignResult::Valid) => {
+                (Ok(sig), TestResult::Valid) => {
                     if det {
-                        let expected = decode(&test.sig).expect(
-                            "Failure while decoding expected signature",
-                        );
+                        let expected = test.sig.as_ref();
                         let actual = MlDsaParamSet::encode_signature(sig);
                         if actual == expected {
                             println!(
@@ -293,6 +297,13 @@ fn run_mldsa_wycheproof_sign_tests_internal<MlDsaParamSet: MLDsaSignVariant>(
                         passed += 1;
                     }
                 }
+                _ => {
+                    println!(
+                        "❌ tcId {}: {} — 'Acceptable' case not covered",
+                        test.tc_id, test.comment
+                    );
+                    failed += 1;
+                }
             }
         }
     }
@@ -310,67 +321,49 @@ mod tests {
 
     #[test]
     fn test_mldsa44_sign_with_seed() {
-        let path_buf = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("testdata/wycheproof/mldsa_44_sign_seed_test.json");
-
-        let path = path_buf
-            .to_str()
-            .expect("Path to testvector must be valid UTF-8");
-        run_mldsa_wycheproof_sign_tests_internal::<Mldsa44>(path, true);
+        run_mldsa_wycheproof_sign_tests_internal::<Mldsa44>(
+            TestName::MlDsa44SignSeed,
+            true,
+        );
     }
 
     #[test]
     fn test_mldsa44_sign_without_seed() {
-        let path_buf = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("testdata/wycheproof/mldsa_44_sign_noseed_test.json");
-
-        let path = path_buf
-            .to_str()
-            .expect("Path to testvector must be valid UTF-8");
-        run_mldsa_wycheproof_sign_tests_internal::<Mldsa44>(path, true);
+        run_mldsa_wycheproof_sign_tests_internal::<Mldsa44>(
+            TestName::MlDsa44SignNoSeed,
+            true,
+        );
     }
 
     #[test]
     fn test_mldsa65_sign_with_seed() {
-        let path_buf = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("testdata/wycheproof/mldsa_65_seed_sign_test.json");
-
-        let path = path_buf
-            .to_str()
-            .expect("Path to testvector must be valid UTF-8");
-        run_mldsa_wycheproof_sign_tests_internal::<Mldsa65>(path, true);
+        run_mldsa_wycheproof_sign_tests_internal::<Mldsa65>(
+            TestName::MlDsa65SignSeed,
+            true,
+        );
     }
 
     #[test]
     fn test_mldsa65_sign_without_seed() {
-        let path_buf = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("testdata/wycheproof/mldsa_65_noseed_sign_test.json");
-
-        let path = path_buf
-            .to_str()
-            .expect("Path to testvector must be valid UTF-8");
-        run_mldsa_wycheproof_sign_tests_internal::<Mldsa65>(path, true);
+        run_mldsa_wycheproof_sign_tests_internal::<Mldsa65>(
+            TestName::MlDsa65SignNoSeed,
+            true,
+        );
     }
 
     #[test]
     fn test_mldsa87_sign_with_seed() {
-        let path_buf = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("testdata/wycheproof/mldsa_87_sign_seed_test.json");
-
-        let path = path_buf
-            .to_str()
-            .expect("Path to testvector must be valid UTF-8");
-        run_mldsa_wycheproof_sign_tests_internal::<Mldsa87>(path, true);
+        run_mldsa_wycheproof_sign_tests_internal::<Mldsa87>(
+            TestName::MlDsa87SignSeed,
+            true,
+        );
     }
 
     #[test]
     fn test_mldsa87_sign_without_seed() {
-        let path_buf = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("testdata/wycheproof/mldsa_87_sign_noseed_test.json");
-
-        let path = path_buf
-            .to_str()
-            .expect("Path to testvector must be valid UTF-8");
-        run_mldsa_wycheproof_sign_tests_internal::<Mldsa87>(path, true);
+        run_mldsa_wycheproof_sign_tests_internal::<Mldsa87>(
+            TestName::MlDsa87SignSeed,
+            true,
+        );
     }
 }

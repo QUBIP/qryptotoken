@@ -707,7 +707,7 @@ dependencies = [
  "libcrux-macros 0.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "libcrux-sha2",
  "rand_core 0.9.3",
- "wycheproof",
+ "wycheproof 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -1170,6 +1170,7 @@ dependencies = [
  "slh-dsa",
  "thiserror",
  "uuid",
+ "wycheproof 0.6.0 (git+https://github.com/eferollo/wycheproof-rs.git?branch=mldsa-vectors-0.6.0)",
  "zeroize",
 ]
 
@@ -1679,6 +1680,16 @@ name = "wycheproof"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "efb3be19abfb206c6adcbdf2007b09b0e8ca1f6530db40c03b42ce8ed4719894"
+dependencies = [
+ "data-encoding",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "wycheproof"
+version = "0.6.0"
+source = "git+https://github.com/eferollo/wycheproof-rs.git?branch=mldsa-vectors-0.6.0#02f43a60bb31615fd957878145c17851eb4c5766"
 dependencies = [
  "data-encoding",
  "serde",

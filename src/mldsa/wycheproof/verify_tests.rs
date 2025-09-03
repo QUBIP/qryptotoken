@@ -1,5 +1,3 @@
-use super::reader::*;
-use super::verify_schema::*;
 use crate::adapters::error::*;
 use crate::adapters::libcrux::mldsa::mldsa44::{
     PubKey as PubKey44, Signature as Signature44,
@@ -13,8 +11,8 @@ use crate::adapters::libcrux::mldsa::mldsa87::{
 use crate::mldsa::wycheproof::mldsa_variant::MLDsaVerifyVariant;
 use signature::Verifier;
 use std::error::Error;
-
-use hex::decode;
+use wycheproof::mldsa_verify::{self, *};
+use wycheproof::TestResult;
 
 pub struct Mldsa44;
 pub struct Mldsa65;
@@ -72,21 +70,24 @@ fn extract_adapter_error(err: &signature::Error) -> Option<&AdapterError> {
     None
 }
 
-fn error_matches_flag(flag: &Flag, err: &AdapterError) -> bool {
+fn error_matches_flag(flag: &TestFlag, err: &AdapterError) -> bool {
     match (flag, err) {
         (
-            Flag::IncorrectSignatureLength,
+            TestFlag::IncorrectSignatureLength,
             AdapterError::InvalidSignatureLen { .. },
         ) => true,
         (
-            Flag::IncorrectPublicKeyLength,
+            TestFlag::IncorrectPublicKeyLength,
             AdapterError::InvalidKeyLen { .. },
         ) => true,
-        (Flag::InvalidContext, AdapterError::ContextTooLong { .. }) => true,
-        (Flag::InvalidHintsEncoding, AdapterError::VerificationError(_)) => {
+        (TestFlag::InvalidContext, AdapterError::ContextTooLong { .. }) => true,
+        (
+            TestFlag::InvalidHintsEncoding,
+            AdapterError::VerificationError(_),
+        ) => true,
+        (TestFlag::ModifiedSignature, AdapterError::VerificationError(_)) => {
             true
         }
-        (Flag::ModifiedSignature, AdapterError::VerificationError(_)) => true,
 
         _ => false,
     }
@@ -105,15 +106,14 @@ fn error_matches_flag(flag: &Flag, err: &AdapterError) -> bool {
 /// the returned error does not match any of the expected flags, we count it
 /// as a failure and mark it as a warning that requires further inspection.
 pub fn run_mldsa_wycheproof_verify_tests<MlDsaParamSet: MLDsaVerifyVariant>(
-    path: &str,
+    test_name: TestName,
 ) {
-    let schema = load_verify_schema_from_file(path)
-        .expect("Failed to load test vectors");
-
+    let test_set = mldsa_verify::TestSet::load(test_name)
+        .unwrap_or_else(|e| panic!("Failed to load sign test set: {e}"));
     let mut passed = 0;
     let mut failed = 0;
 
-    for group in &schema.test_groups {
+    for group in test_set.test_groups {
         /*
          * In Wycheproof, each entry in "testGroups" defines a public key that
          * is used for all tests in the associated "tests" array. If the public
@@ -125,13 +125,12 @@ pub fn run_mldsa_wycheproof_verify_tests<MlDsaParamSet: MLDsaVerifyVariant>(
          * group, then skip to the next "testGroup". If the public key is
          * valid, we continue and execute all tests within that group.
          */
-        let pubkey_bytes = decode(&group.public_key)
-            .expect("Failure while decoding public key hexstring");
+        let pubkey_bytes = group.pubkey.as_ref();
         let pubkey = match MlDsaParamSet::decode_pubkey(&pubkey_bytes) {
             Ok(pk) => pk,
             Err(e) => {
                 for test in &group.tests {
-                    if test.result == VerifyResult::Invalid {
+                    if test.result == TestResult::Invalid {
                         let matched = test
                             .flags
                             .iter()
@@ -166,14 +165,12 @@ pub fn run_mldsa_wycheproof_verify_tests<MlDsaParamSet: MLDsaVerifyVariant>(
         };
 
         for test in &group.tests {
-            let msg = decode(&test.msg)
-                .expect("Failure while decoding message hexstring");
-            let input_sig = decode(&test.sig)
-                .expect("Failure while decoding signature hexstring");
+            let msg = test.msg.as_ref();
+            let input_sig = test.sig.as_ref();
             let sig = match MlDsaParamSet::decode_signature(&input_sig) {
                 Ok(sig) => sig,
                 Err(e) => {
-                    let invalid = VerifyResult::Invalid == test.result;
+                    let invalid = TestResult::Invalid == test.result;
                     if invalid {
                         let matched = test
                             .flags
@@ -206,7 +203,7 @@ pub fn run_mldsa_wycheproof_verify_tests<MlDsaParamSet: MLDsaVerifyVariant>(
                 }
             };
 
-            let ctx = decode(&test.ctx).unwrap_or_default();
+            let ctx = test.ctx.as_ref().map_or(&[][..], |c| c.as_ref());
 
             let result = if !ctx.is_empty() {
                 MlDsaParamSet::verify_with_ctx(&pubkey, &msg, &sig, &ctx)
@@ -216,8 +213,8 @@ pub fn run_mldsa_wycheproof_verify_tests<MlDsaParamSet: MLDsaVerifyVariant>(
 
             let expected = &test.result;
             let passed_case = match (expected, result.is_ok()) {
-                (VerifyResult::Valid, true) => true,
-                (VerifyResult::Invalid, false) => true,
+                (TestResult::Valid, true) => true,
+                (TestResult::Invalid, false) => true,
                 _ => false,
             };
             if passed_case {
@@ -276,22 +273,16 @@ mod tests {
 
     #[test]
     fn test_mldsa_44_verify_from_wycheproof() {
-        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("testdata/wycheproof/mldsa_44_verify_test.json");
-        run_mldsa_wycheproof_verify_tests::<Mldsa44>(path.to_str().unwrap());
+        run_mldsa_wycheproof_verify_tests::<Mldsa44>(TestName::MlDsa44Verify);
     }
 
     #[test]
     fn test_mldsa_65_verify_from_wycheproof() {
-        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("testdata/wycheproof/mldsa_65_verify_test.json");
-        run_mldsa_wycheproof_verify_tests::<Mldsa65>(path.to_str().unwrap());
+        run_mldsa_wycheproof_verify_tests::<Mldsa65>(TestName::MlDsa65Verify);
     }
 
     #[test]
     fn test_mldsa_87_verify_from_wycheproof() {
-        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("testdata/wycheproof/mldsa_87_verify_test.json");
-        run_mldsa_wycheproof_verify_tests::<Mldsa87>(path.to_str().unwrap());
+        run_mldsa_wycheproof_verify_tests::<Mldsa87>(TestName::MlDsa87Verify);
     }
 }
