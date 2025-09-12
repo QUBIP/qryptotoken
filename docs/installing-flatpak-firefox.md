@@ -28,6 +28,16 @@ Mozilla's official Flatpak builds are documented here:
 
 ## Getting Started
 
+### Prerequisites
+
+Before proceeding, ensure that:
+
+- You have a build of the `qryptotoken` module (`libqryptotoken_pkcs11.so`). Either
+  * downloaded from the archive attached as an asset to [the latest release of qryptotoken on GitHub][qryptotoken:release:latest] (e.g., `https://github.com/QUBIP/qryptotoken/releases/download/v0.3.0/qryptotoken_v0.3.tar.gz`), or
+  * compiled following [our instructions](./build-qryptotoken.md).
+- You have initialized a `qryptotoken` token store (creating a `token.sql` file), as explained in [Module Initialization](./build-qryptotoken.md#module-initialization).
+  * note that a pre-initialized (PIN: `1234`) `token.sql` file is also usually available among the assets of [the latest release of qryptotoken on GitHub][qryptotoken:release:latest]
+
 ### System Requirements
 
 Ensure your system has the following tools installed:
@@ -35,7 +45,7 @@ Ensure your system has the following tools installed:
 - `flatpak`
 
   ```sh
-  sudo apt install flatpak
+  sudo dnf install flatpak
   ```
 
   Also, ensure that Flathub is configured as a Flatpak remote: for that, run:
@@ -47,26 +57,64 @@ Ensure your system has the following tools installed:
 - `tar`
 
   ```sh
-  sudo apt install tar
+  sudo dnf install tar
   ```
 
 ### Setting up the Flatpak-Firefox Image
 
-First, download and extract the target.flatpak.tar.xz archive — this will create a ./repo directory, which acts as a local Flatpak source for installing Firefox.
+QUBIP's Firefox Flatpak image can be installed in two alternative ways:
+- either setting up our online remote, which always includes the latest published release of QUBIP Firefox, or
+- setting up a local remote from a published repo archive, allowing to pick a specific published release of QUBIP Firefox
+
+#### Using QUBIP's online remote
+
+Add our online Flatpak repository:
 
 ```sh
-cd ~/Downloads
-wget https://a3s.fi/qubip_binaries/target.flatpak.tar.xz
-tar xf target.flatpak.tar.xz
+flatpak --user --no-gpg-verify remote-add firefox-try https://a3s.fi/qubip_binaries/flatpak-firefox-try/repo
+```
+
+This command adds a user-level Flatpak remote named `firefox-try`,
+backed by our online repository at
+`https://a3s.fi/qubip_binaries/flatpak-firefox-try/repo`,
+so that Flatpak knows where to fetch and install our custom Firefox
+build from.
+
+Check the [Troubleshooting](#troubleshooting) section below if you
+encounter errors, and to verify the remote was correctly added.
+
+#### Using a local remote from a published archive
+
+First, download and extract the flatpak archive from
+[the latest release of QUBIP Firefox on GitHub][qubip_firefox:release:latest] — this
+will create a `./repo` directory, which acts as a
+local Flatpak remote for installing Firefox.
+(Replace `$FLATPAK_URL` with the URL of the archive file, e.g.,
+`https://github.com/QUBIP/firefox/releases/download/QUBIP%2FDEVEDITION_141_QUBIP_02_RELEASE/firefox.DEVEDITION_141_QUBIP_02_RELEASE.flatpak.tar.xz`.
+Replace `$FLATPAK_ARCHIVE` with the name of the downloaded file, e.g.
+`firefox.DEVEDITION_141_QUBIP_02_RELEASE.flatpak.tar.xz`.)
+
+```sh
+cd $HOME/Downloads
+wget $FLATPAK_URL
+tar xf $FLATPAK_ARCHIVE
 ```
 
 Next, add this local repository as a Flatpak remote:
 
 ```sh
-flatpak --user --no-gpg-verify remote-add firefox-try ~/Downloads/repo/
+flatpak --user --no-gpg-verify remote-add firefox-try $HOME/Downloads/repo/
 ```
 
-This command adds a user-level Flatpak remote named firefox-try, which would create a reference to your local Firefox repository (./repo) so that Flatpak knows where to fetch and install the custom Firefox build from.
+This command adds a user-level Flatpak remote named `firefox-try`,
+backed by the local repository files  at `$HOME/Downloads/repo/`,
+so that Flatpak knows where to fetch and install our custom Firefox
+build from.
+
+Check the [Troubleshooting](#troubleshooting) section below if you
+encounter errors, and to verify the remote was correctly added.
+
+#### Troubleshooting
 
 > [!NOTE]
 > If you encounter an error like `Remote firefox-try already exists`, you have two options:
@@ -175,3 +223,6 @@ _Once you’ve finished setting up Firefox using this guide and have built the
 `qryptotoken` module (see: [README.md](/README.md)), you’re ready to **test** its
 integration with Firefox. See:
 [`test-with-firefox.md`](./test-with-firefox.md#running-firefox-from-flatpak-build)._
+
+[qryptotoken:release:latest]: https://github.com/QUBIP/qryptotoken/releases/latest
+[qubip_firefox:release:latest]: https://github.com/QUBIP/firefox/releases/latest

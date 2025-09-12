@@ -22,10 +22,13 @@ This guide outlines how to load and interact with the `qryptotoken` PKCS#11 modu
 
 Before proceeding, ensure that:
 
-- You have a build of the `qryptotoken` module (`libqryptotoken_pkcs11.so`), compiled following [our instructions](./build-qryptotoken.md).
-- You already initialized once a `qryptotoken` token store, as explained in [Module Initialization](./build-qryptotoken.md#module-initialization).
-- You have a QUBIP build of Firefox, either you [built it from source](./build-firefox-from-source.md)
-  or you [have installed a pre-built flatpak bundle](./installing-flatpak-firefox.md).
+- You have a build of the `qryptotoken` module (`libqryptotoken_pkcs11.so`), compiled following [our instructions](./build-qryptotoken.md),
+  or downloaded from the archive attached as an asset to [the latest release of qryptotoken on GitHub][qryptotoken:release:latest] (e.g., `https://github.com/QUBIP/qryptotoken/releases/download/v0.3.0/qryptotoken_v0.3.tar.gz`).
+- You have initialized a `qryptotoken` token store (creating a `token.sql` file), as explained in [Module Initialization](./build-qryptotoken.md#module-initialization),
+  or downloaded a pre-initialized `token.sql` file---usually one is available among the assets of [the latest release of qryptotoken on GitHub][qryptotoken:release:latest] (PIN: `1234`).
+
+- You have a QUBIP build of Firefox, either [built from source](./build-firefox-from-source.md)
+  or [installed from a pre-built flatpak bundle](./installing-flatpak-firefox.md).
 - You started a fresh instance of the QUBIP build of Firefox, **with a clean profile**, as instructed either in
   [Build Firefox from Source](./build-firefox-from-source.md)
   or in
@@ -107,7 +110,7 @@ Once Firefox is running, follow these steps to load the `qryptotoken` PKCS#11 mo
 
    ![Step 9](./images/test-with-firefox-09.png)
 
-10. Enter the **user PIN** you set during token initialization when prompted and click **`Sign In`**. For testing purposes, the PIN is:
+10. Enter the **user PIN** you set during token initialization and click **`Sign In`**. For testing purposes, the PIN is:
 
     ```txt
     1234
@@ -155,7 +158,7 @@ This server supports TLS 1.3 handshakes using various post-quantum and hybrid ke
 
 1. In the address bar of Firefox, navigate to:
 
-   <https://test.openquantumsafe.org:6361>
+   <https://test.openquantumsafe.org:6203>
 
 2. If the page loads successfully and the logs indicate activity from your module, it confirms the following:
 
@@ -167,8 +170,9 @@ This server supports TLS 1.3 handshakes using various post-quantum and hybrid ke
 
 ## Interoperability testing with CloudFlare
 
-As of this writing, CloudFlare deployed support for PQ/T hybrid key exchange on most of its user-facing servers.
+As of this writing, CloudFlare has deployed support for PQ/T hybrid key exchange on most of its user-facing servers.
 They also offer a landing page at <https://pq.cloudflareresearch.com/> to test your connection.
+(Note that although the connections to the QUBIP and OQS test sites use the `qryptotoken` token and will fail if it's not configured correctly, a connection to the Cloudflare site can succeed with Firefox Nightly's built-in X25519MLKEM768, which is independent of qryptotoken.)
 
 As of now, PQC authentication is not deployed, so these connections are
 protected against HNDL attacks, but not against an attacker that today had
@@ -181,7 +185,7 @@ algorithms employed in any of the certificates of the trust chain.
 
 ![Error](./images/test-with-firefox-11.png)
 
-If you encounter the `SEC_ERROR_UNKNOWN_ISSUER` error when trying to visit `test.openquantumsafe.org:6361`, this is because the server's certificate is not trusted by default in Firefox.
+If you encounter the `SEC_ERROR_UNKNOWN_ISSUER` error when trying to visit `test.openquantumsafe.org:6203`, this is because the server's certificate is not trusted by default in Firefox.
 You need to add the Open Quantum Safe (OQS) trusted CA (**oqtest_CA**) to Firefox.
 
 1. Download the CA certificate from the following link:  
@@ -195,3 +199,7 @@ You need to add the Open Quantum Safe (OQS) trusted CA (**oqtest_CA**) to Firefo
    - Confirm the trust settings for the CA (typically, you should trust it for identifying websites).
 
 Once this is done, retry connecting to the test server, and the `SEC_ERROR_UNKNOWN_ISSUER` error should no longer appear.
+
+
+[qryptotoken:release:latest]: https://github.com/QUBIP/qryptotoken/releases/latest
+[qubip_firefox:release:latest]: https://github.com/QUBIP/firefox/releases/latest
