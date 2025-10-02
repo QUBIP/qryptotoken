@@ -402,6 +402,26 @@ impl std::convert::TryFrom<&Object> for PubKey {
                 let pk = PubKeySlhDsaShake128s::try_from(pk_bytes.as_slice())?;
                 PubKey::SlhDsaShake128s(pk)
             }
+            CKP_SLH_DSA_SHAKE_128F => {
+                let pk = PubKeySlhDsaShake128f::try_from(pk_bytes.as_slice())?;
+                PubKey::SlhDsaShake128f(pk)
+            }
+            CKP_SLH_DSA_SHAKE_192S => {
+                let pk = PubKeySlhDsaShake192s::try_from(pk_bytes.as_slice())?;
+                PubKey::SlhDsaShake192s(pk)
+            }
+            CKP_SLH_DSA_SHAKE_192F => {
+                let pk = PubKeySlhDsaShake192f::try_from(pk_bytes.as_slice())?;
+                PubKey::SlhDsaShake192f(pk)
+            }
+            CKP_SLH_DSA_SHAKE_256S => {
+                let pk = PubKeySlhDsaShake256s::try_from(pk_bytes.as_slice())?;
+                PubKey::SlhDsaShake256s(pk)
+            }
+            CKP_SLH_DSA_SHAKE_256F => {
+                let pk = PubKeySlhDsaShake256f::try_from(pk_bytes.as_slice())?;
+                PubKey::SlhDsaShake256f(pk)
+            }
             _ => return err_rv!(CKR_ATTRIBUTE_VALUE_INVALID),
         };
 
@@ -427,6 +447,26 @@ impl std::convert::TryFrom<&Object> for PrivKey {
             CKP_SLH_DSA_SHAKE_128S => {
                 let sk = PrivKeySlhDsaShake128s::try_from(sk_bytes.as_slice())?;
                 PrivKey::SlhDsaShake128s(sk)
+            }
+            CKP_SLH_DSA_SHAKE_128F => {
+                let sk = PrivKeySlhDsaShake128f::try_from(sk_bytes.as_slice())?;
+                PrivKey::SlhDsaShake128f(sk)
+            }
+            CKP_SLH_DSA_SHAKE_192S => {
+                let sk = PrivKeySlhDsaShake192s::try_from(sk_bytes.as_slice())?;
+                PrivKey::SlhDsaShake192s(sk)
+            }
+            CKP_SLH_DSA_SHAKE_192F => {
+                let sk = PrivKeySlhDsaShake192f::try_from(sk_bytes.as_slice())?;
+                PrivKey::SlhDsaShake192f(sk)
+            }
+            CKP_SLH_DSA_SHAKE_256S => {
+                let sk = PrivKeySlhDsaShake256s::try_from(sk_bytes.as_slice())?;
+                PrivKey::SlhDsaShake256s(sk)
+            }
+            CKP_SLH_DSA_SHAKE_256F => {
+                let sk = PrivKeySlhDsaShake256f::try_from(sk_bytes.as_slice())?;
+                PrivKey::SlhDsaShake256f(sk)
             }
             _ => return err_rv!(CKR_ATTRIBUTE_VALUE_INVALID),
         };
