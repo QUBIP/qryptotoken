@@ -19,10 +19,6 @@ use std::sync::Arc;
 #[cfg(test)]
 mod wycheproof;
 
-/*
-#[cfg(test)]
-mod tests; */
-
 const MAX_CTX_LEN: CK_ULONG = 255;
 
 /// The ML-DSA Public Key Factory.
