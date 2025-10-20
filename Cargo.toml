@@ -58,7 +58,7 @@ thiserror = "2.0.12"
 wycheproof = { git = "https://github.com/eferollo/wycheproof-rs.git", branch = "mldsa-vectors-0.6.0" }
 
 [features]
-default = ["pure-rust", "env_logger", "libcrux", "rustcrypto"]
+default = ["pure-rust", "env_logger", "libcrux", "rustcrypto", "_composite_sigs_draft_12"]
 
 env_logger = ["dep:env_logger"]
 ossl = []
@@ -66,3 +66,5 @@ fips = ["rusqlite/bundled"]
 pure-rust = []
 libcrux = []
 rustcrypto = []
+_composite_sigs_draft_07 = []
+_composite_sigs_draft_12 = []

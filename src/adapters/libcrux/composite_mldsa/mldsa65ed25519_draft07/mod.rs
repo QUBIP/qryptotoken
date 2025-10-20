@@ -96,12 +96,14 @@ impl std::fmt::Debug for PrivKey {
 }
 
 impl PubKey {
+    #[allow(unused)]
     pub fn encode(&self) -> Vec<u8> {
         let mut bytes = self.mldsa65_pk.as_ref().to_vec();
         bytes.extend_from_slice(self.ed25519_pk.as_ref().as_ref());
         bytes
     }
 
+    #[allow(unused)]
     pub fn decode(key: &[u8]) -> Result<Self, Box<dyn Error>> {
         if key.len() != Self::output_len() {
             return Err(format!(
@@ -131,12 +133,14 @@ impl PubKey {
 }
 
 impl PrivKey {
+    #[allow(unused)]
     pub fn encode(&self) -> Vec<u8> {
         let mut bytes = self.mldsa65_sk.as_ref().to_vec();
         bytes.extend_from_slice(self.ed25519_sk.as_ref().as_ref());
         bytes
     }
 
+    #[allow(unused)]
     pub fn decode(key: &[u8]) -> Result<Self, Box<dyn Error>> {
         if key.len() != Self::output_len() {
             return Err(format!(
@@ -167,6 +171,7 @@ impl PrivKey {
 }
 
 impl Signature {
+    #[allow(unused)]
     pub fn encode(&self) -> Vec<u8> {
         let mut bytes = self.r.clone();
         bytes.extend_from_slice(&self.mldsa65_sig);
@@ -174,6 +179,7 @@ impl Signature {
         bytes
     }
 
+    #[allow(unused)]
     pub fn decode(sig: &[u8]) -> Result<Self, Box<dyn Error>> {
         if sig.len() != Self::output_len() {
             return Err(format!(
@@ -476,6 +482,7 @@ impl Signer<Signature> for PrivKey {
 ///
 /// Returns an `Error` if the Ed25519 key pair generation fails or
 /// if the internal RNG instantiation fails.
+#[allow(unused)]
 pub fn generate_key_pair() -> Result<(PrivKey, PubKey), Box<dyn Error>> {
     let rng = [0u8; libcrux_ml_dsa::KEY_GENERATION_RANDOMNESS_SIZE];
 
@@ -539,3 +546,6 @@ fn compute_message(
 
     to_be_signed
 }
+
+#[cfg(test)]
+pub mod tests;

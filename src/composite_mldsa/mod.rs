@@ -1,6 +1,12 @@
 // Copyright (C) 2023-2025 Tampere University
 // See LICENSE.txt file for terms
-use crate::adapters::libcrux::mldsa65ed25519::{
+
+#[cfg(feature = "_composite_sigs_draft_07")]
+use crate::adapters::libcrux::composite_mldsa::mldsa65ed25519_draft07::{
+    generate_key_pair, sizes::*, PrivKey, PubKey, Signature,
+};
+#[cfg(feature = "_composite_sigs_draft_12")]
+use crate::adapters::libcrux::composite_mldsa::mldsa65ed25519_draft12::{
     generate_key_pair, sizes::*, PrivKey, PubKey, Signature,
 };
 use crate::attribute::{from_bool, from_bytes, from_ulong};
@@ -721,5 +727,5 @@ impl Verify for MlDsa65Ed25519Operation {
     }
 }
 
-#[cfg(test)]
-mod tests;
+//#[cfg(test)]
+//mod tests;

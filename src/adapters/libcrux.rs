@@ -1,2 +1,2 @@
+pub(crate) mod composite_mldsa;
 pub(crate) mod mldsa;
-pub(crate) mod mldsa65ed25519;
