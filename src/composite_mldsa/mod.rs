@@ -2,13 +2,10 @@
 // See LICENSE.txt file for terms
 
 #[cfg(feature = "_composite_sigs_draft_07")]
-use crate::adapters::libcrux::composite_mldsa::mldsa65ed25519_draft07::{
-    generate_key_pair, sizes::*, PrivKey, PubKey, Signature,
-};
+use crate::adapters::libcrux::composite_mldsa::mldsa65ed25519_draft07 as mldsa65ed25519;
 #[cfg(feature = "_composite_sigs_draft_12")]
-use crate::adapters::libcrux::composite_mldsa::mldsa65ed25519_draft12::{
-    generate_key_pair, sizes::*, PrivKey, PubKey, Signature,
-};
+use crate::adapters::libcrux::composite_mldsa::mldsa65ed25519_draft12 as mldsa65ed25519;
+
 use crate::attribute::{from_bool, from_bytes, from_ulong};
 use crate::error::*;
 use crate::interface::*;
@@ -16,6 +13,7 @@ use crate::log::*;
 use crate::mechanism::*;
 use crate::object::*;
 use crate::{attr_element, err_rv};
+use mldsa65ed25519::{generate_key_pair, sizes::*, PrivKey, PubKey, Signature};
 use once_cell::sync::Lazy;
 use signature::{Signer, Verifier};
 use std::fmt::Debug;
