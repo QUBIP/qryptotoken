@@ -1,7 +1,5 @@
 use super::*;
 use base64::{engine::general_purpose, Engine};
-use env_logger::Builder;
-use std::sync::Once;
 
 /*
  * The following test keys and signature are taken as an example from
@@ -122,19 +120,9 @@ const SIG: &str = "ZO8wj2bNrycdea5wP7xEmwcMya+Dxv25T/jq51zto2\
 
 const MSG: &[u8] = b"The quick brown fox jumps over the lazy dog.";
 
-static INIT: Once = Once::new();
-
 /* Setup function that runs before each test (optional) */
 fn setup() -> () {
-    INIT.call_once(|| {
-        Builder::from_default_env()
-            //.filter_level(log::levelfilter::debug)
-            .format_timestamp(None) // optional: disable timestamps
-            .format_module_path(true) // optional: disable module path
-            .format_target(false) // optional: disable target
-            .format_source_path(true)
-            .init();
-    });
+    crate::try_init_logging().expect("Failed initializing logging subsystem");
 }
 
 #[test]
