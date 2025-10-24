@@ -35,9 +35,10 @@
 <summary>Table of Contents</summary>
 
 - [About](#about)
-  - [Supported algorithms](#supported-algorithms)
-    - [Key Encapsulation Methods](#key-encapsulation-methods)
-    - [Digital Signatures](#digital-signatures)
+- [Supported algorithms](#supported-algorithms)
+  - [Key Encapsulation Methods](#key-encapsulation-methods)
+  - [Digital Signatures](#digital-signatures)
+  - [PKCS\#11 Reference](#pkcs11-reference)
 - [Getting Started](#getting-started)
 - [Roadmap](#roadmap)
 - [Support](#support)
@@ -61,7 +62,7 @@ The project builds upon and diverges from the original [kryoptic](https://github
 
 The objective of this project is to develop a framework for integrating Post-Quantum Cryptography (PQC) functionality into the Mozilla Firefox security library called Network Security Services (NSS).
 
-### Supported algorithms
+## Supported algorithms
 
 While we do not tightly couple with specific implementation choices,
 at the moment we support a limited selection of algorithms
@@ -74,20 +75,21 @@ The current supported algorithms are summarized in the following tables.
 > for additional PQC algorithms
 > and other external implementations.
 
-#### Key Encapsulation Methods
+### Key Encapsulation Methods
 
 | Algorithm  | Adapter |
 | ---------- | ------- |
 | ML-KEM-768 | libcrux |
 
-#### Digital Signatures
+
+### Digital Signatures
 
 | Algorithm           | Adapter   | Note |
 | ------------------ | ---------- | ---- |
 | ML-DSA-44          | libcrux    |      |
 | ML-DSA-65          | libcrux    |      |
 | ML-DSA-87          | libcrux    |      |
-| MLDSA65-Ed25519-SHA512 | libcrux    | [draft-ietf-lamps-pq-composite-sigs@12](https://datatracker.ietf.org/doc/html/draft-ietf-lamps-pq-composite-sigs-12) |
+| MLDSA65-Ed25519-SHA512 | libcrux    | [draft-ietf-lamps-pq-composite-sigs@12](https://datatracker.ietf.org/doc/html/draft-ietf-lamps-pq-composite-sigs-12) (see [note below](#note-on-composite-ml-dsa))|
 | SLH-DSA-SHAKE-128s | rustcrypto |      |
 | SLH-DSA-SHAKE-128f | rustcrypto |      |
 | SLH-DSA-SHAKE-192s | rustcrypto |      |
@@ -95,9 +97,10 @@ The current supported algorithms are summarized in the following tables.
 | SLH-DSA-SHAKE-256s | rustcrypto |      |
 | SLH-DSA-SHAKE-256f | rustcrypto |      |
 
-##### Note on Composite ML-DSA
 
-Qryptotoken currently supports **MLDSA65-Ed25519-SHA512** as the only composite ML-DSA algorithm.
+#### Note on Composite ML-DSA
+
+`qryptotoken` currently supports **MLDSA65-Ed25519-SHA512** as the only composite ML-DSA algorithm.
 
 - The default implementation included at build time is based on **version 12** of the [draft-ietf-lamps-pq-composite-sigs](https://datatracker.ietf.org/doc/html/draft-ietf-lamps-pq-composite-sigs-12).
 - An earlier implementation, based on [**version 07**](https://datatracker.ietf.org/doc/html/draft-ietf-lamps-pq-composite-sigs-07) of the draft, is also available and can be enabled by building Qryptotoken with the Cargo feature `_composite_sigs_draft_07`.
@@ -105,7 +108,7 @@ Qryptotoken currently supports **MLDSA65-Ed25519-SHA512** as the only composite 
 
 Users can choose between draft versions if needed, while maintaining **draft-12** as the latest standard (draft) supported implementation.
 
-#### PKCS\#11 Reference
+### PKCS\#11 Reference
 
 | Algorithm           | CKM_* (Hex)  | CKM_*_KEY_PAIR_GEN (Hex) | CKK_* (Hex)  | Parameter Set (Hex) | Notes                |
 | ------------------- | ------------ | ------------------------ | ------------ | ------------------- | -------------------- |
@@ -122,6 +125,7 @@ Users can choose between draft versions if needed, while maintaining **draft-12*
 | SLH-DSA-SHAKE-256f  | `0xCE534549` | `0xCE534548`             | `0xCE534547` | `0x0000000C`        | NISEC vendor-defined |
 
 Currently all values are **vendor-defined** in the **NISEC namespace** constructed as follows:
+
 ```c
 #define CKM_VENDOR_DEFINED 0X80000000
 #define NISEC_VENDOR_NSS 0x4E534543
@@ -131,9 +135,11 @@ Currently all values are **vendor-defined** in the **NISEC namespace** construct
 #define CKK_NISEC (CKK_VENDOR_DEFINED | NISEC_VENDOR_NSS)
 ```
 
-The CKM_* and CKK_* values for each algorithm are calculated by applying a specific offset to the vendor-defined base.
-Currenlty CKP_* values comply with [PKCS\#11 v3.2](https://docs.oasis-open.org/pkcs11/pkcs11-spec/v3.2/pkcs11-spec-v3.2.html) standard.
-For reference, look at `src/pkcs11_headers/nisec_vendor_extensions.h`.
+The `CKM_*` and `CKK_*` values for each algorithm are calculated by applying a specific offset to the vendor-defined base.
+
+Currently, `CKP_*` values comply with [PKCS\#11 v3.2](https://docs.oasis-open.org/pkcs11/pkcs11-spec/v3.2/pkcs11-spec-v3.2.html) standard.
+
+For reference, look at [`pkcs11_headers/nisec_vendor_extensions.h`](pkcs11_headers/nisec_vendor_extension.h).
 
 ## Getting Started
 
