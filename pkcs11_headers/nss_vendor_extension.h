@@ -1,12 +1,11 @@
 #include "3.1/pkcs11.h"
 
-#define CKK_ML_KEM 0xCE534380 /* Custom key type for ML-based KEM */
-#define CKM_ML_KEM_KEYGEN 0xCE534380 /* Custom mechanism for ML-based KEM */
-#define CKM_ML_KEM 0xCE534381 /* Custom mechanism for ML-based KEM */
 #define NSSCK_VENDOR_NSS 0x4E534350 /* NSCP */
 #define CKM_NSS (CKM_VENDOR_DEFINED | NSSCK_VENDOR_NSS)
-#define CKM_NSS_KYBER (CKM_NSS + 46)
+#define CKM_NSS_ML_KEM_KEY_PAIR_GEN (CKM_NSS + 48)
 #define CKM_NSS_ML_KEM (CKM_NSS + 49)
+#define CKK_NSS (CKK_VENDOR_DEFINED | NSSCK_VENDOR_NSS)
+#define CKK_NSS_ML_KEM (CKK_NSS + 6)
 #define CKP_NSS (CKM_VENDOR_DEFINED | NSSCK_VENDOR_NSS)
 #define CKP_NSS_ML_KEM_768 (CKP_NSS + 2)
 

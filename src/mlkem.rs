@@ -189,19 +189,18 @@ impl Mechanism for MlKemMechanism {
 }
 
 pub fn register(mechs: &mut Mechanisms, ot: &mut ObjectFactories) {
-    /* mechs.add_mechanism(
-            CKM_ML_KEM,
-            Box::new(MlKemMechanism {
-                info: CK_MECHANISM_INFO {
-                    ulMinKeySize: 0,
-                    ulMaxKeySize: 0,
-                    flags: CKF_WRAP | CKF_UNWRAP,
-                },
-            }),
-        );
-    */
     mechs.add_mechanism(
-        CKM_ML_KEM_KEYGEN,
+        CKM_NSS_ML_KEM,
+        Box::new(MlKemMechanism {
+            info: CK_MECHANISM_INFO {
+                ulMinKeySize: 0,
+                ulMaxKeySize: 0,
+                flags: CKF_WRAP | CKF_UNWRAP,
+            },
+        }),
+    );
+    mechs.add_mechanism(
+        CKM_NSS_ML_KEM_KEY_PAIR_GEN,
         Box::new(MlKemMechanism {
             info: CK_MECHANISM_INFO {
                 ulMinKeySize: 0,
@@ -212,11 +211,11 @@ pub fn register(mechs: &mut Mechanisms, ot: &mut ObjectFactories) {
     );
 
     ot.add_factory(
-        ObjectType::new(CKO_PUBLIC_KEY, CKK_ML_KEM),
+        ObjectType::new(CKO_PUBLIC_KEY, CKK_NSS_ML_KEM),
         &PUBLIC_KEY_FACTORY,
     );
     ot.add_factory(
-        ObjectType::new(CKO_PRIVATE_KEY, CKK_ML_KEM),
+        ObjectType::new(CKO_PRIVATE_KEY, CKK_NSS_ML_KEM),
         &PRIVATE_KEY_FACTORY,
     );
 }
