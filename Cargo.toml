@@ -1,6 +1,6 @@
 [package]
 name = "qryptotoken"
-version = "0.4.0-rc2"
+version = "0.4.0"
 edition = "2021"
 
 [lib]
@@ -59,7 +59,13 @@ wycheproof = { git = "https://github.com/eferollo/wycheproof-rs.git", branch = "
 const_format = "0.2.35"
 
 [features]
-default = ["pure-rust", "env_logger", "libcrux", "rustcrypto", "_composite_sigs_draft_12"]
+default = [
+  "pure-rust",
+  "env_logger",
+  "libcrux",
+  "rustcrypto",
+  "_composite_sigs_draft_12",
+]
 
 env_logger = ["dep:env_logger"]
 ossl = []
