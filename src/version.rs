@@ -1,5 +1,7 @@
 // Copyright (C) 2023-2025 Tampere University
 // See LICENSE.txt file for terms
+use super::interface::*;
+
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 const fn parse_major_minor(version: &str) -> (u8, u8) {
@@ -23,6 +25,21 @@ const fn parse_major_minor(version: &str) -> (u8, u8) {
     }
 
     (major, minor)
+}
+
+pub const fn make_slot_description() -> [CK_UTF8CHAR; 64] {
+    // Build the base string at compile time
+    let s =
+        const_format::concatcp!(env!("CARGO_PKG_NAME"), " v", VERSION, " Slot");
+    let bytes = s.as_bytes();
+
+    let mut buf = [b' '; 64];
+    let mut i = 0;
+    while i < bytes.len() && i < 64 {
+        buf[i] = bytes[i];
+        i += 1;
+    }
+    buf
 }
 
 pub static MAJOR: u8 = parse_major_minor(VERSION).0;
