@@ -341,7 +341,21 @@ impl Signer<Signature> for PrivKey {
         let m_prime_copy = m_prime.clone();
 
         /* Deterministically generate the ML-DSA private key from the seed */
-        let mldsa65_pair = genererate_mldsa65_keypair(self.mldsa65_seed);
+        /* Prepare channel to receive the key pair from another thread */
+        let (tx, rx) = std::sync::mpsc::channel();
+        let seed = self.mldsa65_seed.clone();
+        let handle = std::thread::spawn(move || {
+            let pair = genererate_mldsa65_keypair(seed);
+            tx.send(pair).expect("Failed to send keypair from thread");
+        });
+
+        /* Wait for keypair to come back (this will block until it's ready) */
+        let mldsa65_pair = rx.recv().expect("Failed to receive keypair");
+
+        handle
+            .join()
+            .expect("Thread panicked during key generation");
+
         let mldsa65_sk: MLDSA65SigningKey = mldsa65_pair.signing_key;
 
         let mldsa_handle = std::thread::Builder::new()
