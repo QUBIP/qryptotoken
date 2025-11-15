@@ -1191,7 +1191,7 @@ dependencies = [
  "slh-dsa",
  "thiserror",
  "uuid",
- "wycheproof 0.6.0 (git+https://github.com/eferollo/wycheproof-rs.git?branch=mldsa-vectors-0.6.0)",
+ "wycheproof 0.6.0 (git+https://github.com/eferollo/wycheproof-rs.git?branch=composite-mldsa-draft)",
  "zeroize",
 ]
 
@@ -1716,10 +1716,11 @@ dependencies = [
 [[package]]
 name = "wycheproof"
 version = "0.6.0"
-source = "git+https://github.com/eferollo/wycheproof-rs.git?branch=mldsa-vectors-0.6.0#02f43a60bb31615fd957878145c17851eb4c5766"
+source = "git+https://github.com/eferollo/wycheproof-rs.git?branch=composite-mldsa-draft#c412ae2d366f1248358a3bc99ac77fe9138896b3"
 dependencies = [
  "data-encoding",
  "serde",
+ "serde_derive",
  "serde_json",
 ]
 

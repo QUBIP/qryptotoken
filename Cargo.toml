@@ -55,17 +55,11 @@ slh-dsa = "0.0.3"
 libcrux-ed25519 = { version = "0.0.2", features = ["rand"] }
 base64 = "0.22.1"
 thiserror = "2.0.12"
-wycheproof = { git = "https://github.com/eferollo/wycheproof-rs.git", branch = "mldsa-vectors-0.6.0" }
 const_format = "0.2.35"
+wycheproof = { git = "https://github.com/eferollo/wycheproof-rs.git", branch = "composite-mldsa-draft" }
 
 [features]
-default = [
-  "pure-rust",
-  "env_logger",
-  "libcrux",
-  "rustcrypto",
-  "_composite_sigs_draft_12",
-]
+default = ["pure-rust", "env_logger", "libcrux", "rustcrypto", "_composite_sigs_draft_12"]
 
 env_logger = ["dep:env_logger"]
 ossl = []
