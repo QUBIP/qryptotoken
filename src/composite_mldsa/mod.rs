@@ -3,8 +3,8 @@
 
 #[cfg(feature = "_composite_sigs_draft_07")]
 use crate::adapters::libcrux::composite_mldsa::mldsa65ed25519_draft07 as mldsa65ed25519;
-#[cfg(feature = "_composite_sigs_draft_12")]
-use crate::adapters::libcrux::composite_mldsa::mldsa65ed25519_draft12 as mldsa65ed25519;
+#[cfg(feature = "_composite_sigs_draft_13")]
+use crate::adapters::libcrux::composite_mldsa::mldsa65ed25519_draft13 as mldsa65ed25519;
 
 use crate::attribute::{from_bool, from_bytes, from_ulong};
 use crate::error::*;

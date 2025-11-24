@@ -89,7 +89,7 @@ The current supported algorithms are summarized in the following tables.
 | ML-DSA-44          | libcrux    |      |
 | ML-DSA-65          | libcrux    |      |
 | ML-DSA-87          | libcrux    |      |
-| MLDSA65-Ed25519-SHA512 | libcrux    | [draft-ietf-lamps-pq-composite-sigs@12](https://datatracker.ietf.org/doc/html/draft-ietf-lamps-pq-composite-sigs-12) (see [note below](#note-on-composite-ml-dsa))|
+| MLDSA65-Ed25519-SHA512 | libcrux    | [draft-ietf-lamps-pq-composite-sigs@13](https://datatracker.ietf.org/doc/html/draft-ietf-lamps-pq-composite-sigs-13) (see [note below](#note-on-composite-ml-dsa))|
 | SLH-DSA-SHAKE-128s | rustcrypto |      |
 | SLH-DSA-SHAKE-128f | rustcrypto |      |
 | SLH-DSA-SHAKE-192s | rustcrypto |      |
@@ -102,11 +102,11 @@ The current supported algorithms are summarized in the following tables.
 
 `qryptotoken` currently supports **MLDSA65-Ed25519-SHA512** as the only composite ML-DSA algorithm.
 
-- The default implementation included at build time is based on **version 12** of the [draft-ietf-lamps-pq-composite-sigs](https://datatracker.ietf.org/doc/html/draft-ietf-lamps-pq-composite-sigs-12).
+- The default implementation included at build time is based on **version 13** of the [draft-ietf-lamps-pq-composite-sigs](https://datatracker.ietf.org/doc/html/draft-ietf-lamps-pq-composite-sigs-13).
 - An earlier implementation, based on [**version 07**](https://datatracker.ietf.org/doc/html/draft-ietf-lamps-pq-composite-sigs-07) of the draft, is also available and can be enabled by building Qryptotoken with the Cargo feature `_composite_sigs_draft_07`.
-- By default, the Cargo feature `_composite_sigs_draft_12` is selected.
+- By default, the Cargo feature `_composite_sigs_draft_13` is selected.
 
-Users can choose between draft versions if needed, while maintaining **draft-12** as the latest standard (draft) supported implementation.
+Users can choose between draft versions if needed, while maintaining **draft-13** as the latest standard (draft) supported implementation.
 
 ### PKCS\#11 Reference
 

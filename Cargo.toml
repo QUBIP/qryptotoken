@@ -59,7 +59,7 @@ const_format = "0.2.35"
 wycheproof = { git = "https://github.com/eferollo/wycheproof-rs.git", branch = "composite-mldsa-draft" }
 
 [features]
-default = ["pure-rust", "env_logger", "libcrux", "rustcrypto", "_composite_sigs_draft_12"]
+default = ["pure-rust", "env_logger", "libcrux", "rustcrypto", "_composite_sigs_draft_13"]
 
 env_logger = ["dep:env_logger"]
 ossl = []
@@ -68,4 +68,4 @@ pure-rust = []
 libcrux = []
 rustcrypto = []
 _composite_sigs_draft_07 = []
-_composite_sigs_draft_12 = []
+_composite_sigs_draft_13 = []

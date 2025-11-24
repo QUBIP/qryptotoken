@@ -34,7 +34,7 @@ const MLDSA_SEED_SIZE: usize = 32;
 
 /*
  * Implementation specifications of composite ML-DSA are described at
- * https://datatracker.ietf.org/doc/draft-ietf-lamps-pq-composite-sigs/12/
+ * https://datatracker.ietf.org/doc/draft-ietf-lamps-pq-composite-sigs/13/
  *
  * When constructing the to-be-signed message representative M', several
  * domain separator values are pre-pended to the message pre-hash prior
