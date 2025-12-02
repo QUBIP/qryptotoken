@@ -265,7 +265,6 @@ impl Mechanism for MlDsaMechanism {
             Err(e) => return Err(e),
         }
 
-        /* sign_new not implemented yet, the code will panic here */
         let ret = Box::new(MlDsaOperation::sign_new(mech, key, &self.info)?);
 
         crate::trace!(
@@ -785,7 +784,10 @@ impl Verify for MlDsaOperation {
             .name("verify_thread".into())
             .stack_size(4 * 1024 * 1024)
             .spawn(move || {
-                public_key.verify_with_params(&message, &sig, &sign_ctx)
+                let result = public_key
+                    .verify_with_params(&message, &sig, &sign_ctx)
+                    .map_err(|_| to_rv!(CKR_SIGNATURE_INVALID));
+                result
             })
             .map_err(|_| {
                 error!(
@@ -795,22 +797,14 @@ impl Verify for MlDsaOperation {
                 to_rv!(CKR_FUNCTION_FAILED)
             })?;
 
-        let _ = handle
-            .join()
-            .map_err(|_| {
-                error!(
-                    target: crate::QRYPTOTOKEN_TARGET,
-                    "Thread panicked during verification"
-                );
-                to_rv!(CKR_FUNCTION_FAILED)
-            })
-            .map_err(|e| {
-                error!(
-                    target: crate::QRYPTOTOKEN_TARGET,
-                    "Verification failed: {e:?}"
-                );
-                to_rv!(CKR_SIGNATURE_INVALID)
-            })?;
+        /* Propagate err_rv returned from thread */
+        handle.join().map_err(|_| {
+            error!(
+                target: crate::QRYPTOTOKEN_TARGET,
+                "Thread panicked during verification"
+            );
+            to_rv!(CKR_FUNCTION_FAILED)
+        })??;
 
         debug!(
             target: crate::QRYPTOTOKEN_TARGET,
