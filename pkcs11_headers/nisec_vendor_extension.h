@@ -15,7 +15,7 @@
 #define CKM_ML_DSA (CKM_NISEC + 3)
 
 #define CKK_SLH_DSA (CKK_NISEC + 4)
-#define CKM_SLH_DSA_KEYGEN (CKM_NISEC + 5)
+#define CKM_SLH_DSA_KEY_PAIR_GEN (CKM_NISEC + 5)
 #define CKM_SLH_DSA (CKM_NISEC + 6)
 
 /* CKA_PARAMETER_SET is new for v3.2 */

@@ -8,6 +8,15 @@ pub enum AdapterError {
     #[error("Invalid signature length (expected: {expected}, got: {actual})")]
     InvalidSignatureLen { expected: usize, actual: usize },
 
+    #[error("Invalid signature: {0})")]
+    InvalidSignature(String),
+
+    #[error("Invalid public key: {0})")]
+    InvalidPublicKey(String),
+
+    #[error("Invalid private key: {0})")]
+    InvalidPrivateKey(String),
+
     #[error("Context length exceeds {max} bytes (got: {actual})")]
     ContextTooLong { max: usize, actual: usize },
 

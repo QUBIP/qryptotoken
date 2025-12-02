@@ -1,57 +1,22 @@
 //// Copyright (C) 2023-2025 Tampere University
 //// See LICENSE.txt file for terms
+mod keymgmt;
+
 use crate::attribute::{from_bool, from_bytes, from_ulong};
-use crate::error::*;
 use crate::interface::*;
 use crate::log::*;
 use crate::mechanism::*;
 use crate::object::*;
+use crate::slhdsa::keymgmt::{
+    generate_key_pair, sizes::*, PrivKey, PubKey, Signature,
+};
 use crate::{attr_element, err_rv, to_rv};
+use crate::{bytes_to_vec, cast_params, error::*};
 use once_cell::sync::Lazy;
-use signature::{Signer, Verifier};
 use std::fmt::Debug;
+use std::sync::Arc;
 
-#[cfg(feature = "rustcrypto")]
-use crate::adapters::rustcrypto::slhdsa::{generate_key_pair, PrivKey, PubKey};
-
-/*
- * Public constants defining key and signature sizes for each SLH-DSA
- * parameter set, according to FIPS-205, section 11, Parameter Sets.
- */
-pub mod sizes {
-    #![allow(dead_code)]
-    use super::*;
-
-    pub(crate) const SLH_DSA_SHAKE_128S_PK_SIZE: usize = 32;
-    pub(crate) const SLH_DSA_SHAKE_128S_SK_SIZE: usize = 64;
-    pub(crate) const SLH_DSA_SHAKE_128S_SIG_SIZE: usize = 7856;
-
-    pub(crate) const SLH_DSA_SHAKE_128F_PK_SIZE: usize = 32;
-    pub(crate) const SLH_DSA_SHAKE_128F_SK_SIZE: usize = 64;
-    pub(crate) const SLH_DSA_SHAKE_128F_SIG_SIZE: usize = 17088;
-
-    pub(crate) const SLH_DSA_SHAKE_192S_PK_SIZE: usize = 48;
-    pub(crate) const SLH_DSA_SHAKE_192S_SK_SIZE: usize = 96;
-    pub(crate) const SLH_DSA_SHAKE_192S_SIG_SIZE: usize = 16224;
-
-    pub(crate) const SLH_DSA_SHAKE_192F_PK_SIZE: usize = 48;
-    pub(crate) const SLH_DSA_SHAKE_192F_SK_SIZE: usize = 96;
-    pub(crate) const SLH_DSA_SHAKE_192F_SIG_SIZE: usize = 35664;
-
-    pub(crate) const SLH_DSA_SHAKE_256S_PK_SIZE: usize = 64;
-    pub(crate) const SLH_DSA_SHAKE_256S_SK_SIZE: usize = 128;
-    pub(crate) const SLH_DSA_SHAKE_256S_SIG_SIZE: usize = 29792;
-
-    pub(crate) const SLH_DSA_SHAKE_256F_PK_SIZE: usize = 64;
-    pub(crate) const SLH_DSA_SHAKE_256F_SK_SIZE: usize = 128;
-    pub(crate) const SLH_DSA_SHAKE_256F_SIG_SIZE: usize = 49856;
-
-    pub(crate) const MIN_SLH_DSA_SIZE_BITS: CK_ULONG =
-        (SLH_DSA_SHAKE_128S_PK_SIZE as CK_ULONG) << 3;
-    pub(crate) const MAX_SLH_DSA_SIZE_BITS: CK_ULONG =
-        (SLH_DSA_SHAKE_256S_SK_SIZE as CK_ULONG) << 3;
-}
-use sizes::*;
+const MAX_CTX_LEN: CK_ULONG = 255;
 
 /// The SLH-DSA Public Key Factory
 ///
@@ -297,11 +262,11 @@ impl Mechanism for SlhDsaMechanism {
             Err(e) => return Err(e),
         }
 
-        let ret = Box::new(SlhDsaOperation::verify_new(mech, key, &self.info)?);
+        let ret = Box::new(SlhDsaOperation::sign_new(mech, key, &self.info)?);
 
         crate::trace!(
             target: crate::QRYPTOTOKEN_TARGET,
-            "️🦀 {}::verify_new() DONE 👍",
+            "️🦀 {}::sign_new() DONE 👍",
             std::any::type_name::<Self>()
         );
 
@@ -406,15 +371,20 @@ impl Mechanism for SlhDsaMechanism {
             return err_rv!(CKR_TEMPLATE_INCONSISTENT);
         }
 
-        // TODO: We should check the param_set for the private key too.
+        /* Ensure the parameter set is set and the same for the private key */
+        if !private_key
+            .check_or_set_attr(from_ulong(CKA_PARAMETER_SET, param_set))?
+        {
+            return err_rv!(CKR_TEMPLATE_INCONSISTENT);
+        }
 
         let (sk, pk) = generate_key_pair(param_set)?;
 
         public_key.set_attr(from_ulong(CKA_PARAMETER_SET, param_set))?;
-        public_key.set_attr(from_bytes(CKA_VALUE, pk.to_vec()))?;
+        public_key.set_attr(from_bytes(CKA_VALUE, pk.encode()))?;
 
         private_key.set_attr(from_ulong(CKA_PARAMETER_SET, param_set))?;
-        private_key.set_attr(from_bytes(CKA_VALUE, sk.to_vec()))?;
+        private_key.set_attr(from_bytes(CKA_VALUE, sk.encode()))?;
 
         default_key_attributes(&mut private_key, mech.mechanism)?;
         default_key_attributes(&mut public_key, mech.mechanism)?;
@@ -437,7 +407,7 @@ pub fn register(mechs: &mut Mechanisms, ot: &mut ObjectFactories) {
         }),
     );
     mechs.add_mechanism(
-        CKM_SLH_DSA_KEYGEN,
+        CKM_SLH_DSA_KEY_PAIR_GEN,
         Box::new(SlhDsaMechanism {
             info: CK_MECHANISM_INFO {
                 ulMinKeySize: MIN_SLH_DSA_SIZE_BITS,
@@ -503,16 +473,7 @@ fn slhdsa_check_priv_import(obj: &mut Object) -> KResult<()> {
      * Ensure that the length of CKA_VALUE matches the expected
      * length for the given CKA_PARAMETER_SET.
      */
-    let expected_len = match param_set {
-        CKP_SLH_DSA_SHAKE_128S => SLH_DSA_SHAKE_128S_SK_SIZE,
-        CKP_SLH_DSA_SHAKE_128F => SLH_DSA_SHAKE_128F_SK_SIZE,
-        CKP_SLH_DSA_SHAKE_192S => SLH_DSA_SHAKE_192S_SK_SIZE,
-        CKP_SLH_DSA_SHAKE_192F => SLH_DSA_SHAKE_192F_SK_SIZE,
-        CKP_SLH_DSA_SHAKE_256S => SLH_DSA_SHAKE_256S_SK_SIZE,
-        CKP_SLH_DSA_SHAKE_256F => SLH_DSA_SHAKE_256F_SK_SIZE,
-        _ => return err_rv!(CKR_ATTRIBUTE_VALUE_INVALID),
-    };
-
+    let expected_len = PrivKey::output_len(param_set)?;
     if private_value.len() != expected_len {
         crate::error!(
             target: crate::QRYPTOTOKEN_TARGET,
@@ -522,7 +483,6 @@ fn slhdsa_check_priv_import(obj: &mut Object) -> KResult<()> {
         return err_rv!(CKR_ATTRIBUTE_VALUE_INVALID);
     }
 
-    // TODO: waaaaay later, add support for SEED
     Ok(())
 }
 
@@ -572,16 +532,7 @@ fn slhdsa_check_pub_import(obj: &mut Object) -> KResult<()> {
      * Ensure that the length of CKA_VALUE matches the expected
      * length for the given CKA_PARAMETER_SET.
      */
-    let expected_len = match param_set {
-        CKP_SLH_DSA_SHAKE_128S => SLH_DSA_SHAKE_128S_PK_SIZE,
-        CKP_SLH_DSA_SHAKE_128F => SLH_DSA_SHAKE_128F_PK_SIZE,
-        CKP_SLH_DSA_SHAKE_192S => SLH_DSA_SHAKE_192S_PK_SIZE,
-        CKP_SLH_DSA_SHAKE_192F => SLH_DSA_SHAKE_192F_PK_SIZE,
-        CKP_SLH_DSA_SHAKE_256S => SLH_DSA_SHAKE_256S_PK_SIZE,
-        CKP_SLH_DSA_SHAKE_256F => SLH_DSA_SHAKE_256F_PK_SIZE,
-        _ => return err_rv!(CKR_ATTRIBUTE_VALUE_INVALID),
-    };
-
+    let expected_len = PubKey::output_len(param_set)?;
     if public_value.len() != expected_len {
         crate::error!(
             target: crate::QRYPTOTOKEN_TARGET,
@@ -594,11 +545,55 @@ fn slhdsa_check_pub_import(obj: &mut Object) -> KResult<()> {
     Ok(())
 }
 
+#[derive(Debug, Clone)]
+struct SlhDsaSignAddCtx {
+    hedge: CK_HEDGE_TYPE,
+    ctx: Option<Vec<u8>>,
+}
+impl SlhDsaSignAddCtx {
+    pub fn new(mech: &CK_MECHANISM) -> KResult<SlhDsaSignAddCtx> {
+        let mut sign_ctx = SlhDsaSignAddCtx {
+            hedge: CKH_HEDGE_PREFERRED,
+            ctx: None,
+        };
+
+        if !mech.pParameter.is_null() {
+            match mech.mechanism {
+                CKM_SLH_DSA => {
+                    let params = cast_params!(mech, CK_SIGN_ADDITIONAL_CONTEXT);
+                    match params.hedgeVariant {
+                        CKH_HEDGE_PREFERRED
+                        | CKH_HEDGE_REQUIRED
+                        | CKH_DETERMINISTIC_REQUIRED => {
+                            sign_ctx.hedge = params.hedgeVariant;
+                        }
+                        _ => return err_rv!(CKR_MECHANISM_PARAM_INVALID),
+                    }
+
+                    if params.ulContextLen > 0 {
+                        if params.ulContextLen > MAX_CTX_LEN {
+                            return err_rv!(CKR_MECHANISM_PARAM_INVALID);
+                        }
+                        sign_ctx.ctx = Some(bytes_to_vec!(
+                            params.pContext,
+                            params.ulContextLen
+                        ));
+                    }
+                }
+                _ => return err_rv!(CKR_MECHANISM_INVALID),
+            }
+        }
+
+        Ok(sign_ctx)
+    }
+}
+
 #[derive(Debug)]
 struct SlhDsaOperation {
     output_len: usize,
-    public_key: Option<PubKey>,
+    public_key: Option<Arc<PubKey>>,
     private_key: Option<PrivKey>,
+    sign_ctx: SlhDsaSignAddCtx,
     finalized: bool,
     data: Vec<u8>,
     in_use: bool,
@@ -606,43 +601,55 @@ struct SlhDsaOperation {
 impl SlhDsaOperation {
     #[allow(dead_code)]
     pub fn sign_new(
-        _mech: &CK_MECHANISM,
-        _key: &Object,
-        _info: &CK_MECHANISM_INFO,
-    ) -> KResult<Self> {
-        unimplemented!();
-    }
-
-    pub fn verify_new(
-        _mech: &CK_MECHANISM,
+        mech: &CK_MECHANISM,
         key: &Object,
         _info: &CK_MECHANISM_INFO,
     ) -> KResult<Self> {
-        let output_len = match make_output_length_from_obj(key) {
-            Ok(l) => l,
-            Err(e) => {
-                crate::error!(
-                    target: crate::QRYPTOTOKEN_TARGET,
-                    "️🦀 Error retrieving output length from object: {e:?}"
-                );
-                return Err(e);
+        let sign_ctx = SlhDsaSignAddCtx::new(mech)?;
+
+        let param_set = match key.get_attr_as_ulong(CKA_PARAMETER_SET) {
+            Ok(p) => p,
+            Err(_) => {
+                return err_rv!(CKR_TEMPLATE_INCOMPLETE);
             }
         };
-        let private_key: Option<PrivKey> = None;
-        let public_key = match PubKey::try_from(key) {
-            Ok(pk) => Some(pk),
-            Err(e) => {
-                crate::error!(
-                    target: crate::QRYPTOTOKEN_TARGET,
-                    "️🦀 Error converting from object to PubKey: {e:?}"
-                );
-                return Err(e);
-            }
-        };
+
+        let sk = PrivKey::decode(key)?;
+        let output_len = PrivKey::signature_len(param_set)?;
+
         Ok(SlhDsaOperation {
-            output_len,
-            public_key,
-            private_key,
+            output_len: output_len,
+            public_key: None,
+            private_key: Some(sk),
+            sign_ctx: sign_ctx,
+            finalized: false,
+            data: Vec::new(),
+            in_use: false,
+        })
+    }
+
+    pub fn verify_new(
+        mech: &CK_MECHANISM,
+        key: &Object,
+        _info: &CK_MECHANISM_INFO,
+    ) -> KResult<Self> {
+        let sign_ctx = SlhDsaSignAddCtx::new(mech)?;
+
+        let param_set = match key.get_attr_as_ulong(CKA_PARAMETER_SET) {
+            Ok(p) => p,
+            Err(_) => {
+                return err_rv!(CKR_TEMPLATE_INCOMPLETE);
+            }
+        };
+
+        let pk = PubKey::decode(key)?;
+        let output_len = PrivKey::signature_len(param_set)?;
+
+        Ok(SlhDsaOperation {
+            output_len: output_len,
+            public_key: Some(pk.into()),
+            private_key: None,
+            sign_ctx: sign_ctx,
             finalized: false,
             data: Vec::new(),
             in_use: false,
@@ -695,8 +702,6 @@ impl Sign for SlhDsaOperation {
         }
         self.finalized = true;
 
-        let signlen = signature.len();
-
         let private_key = match self.private_key.as_ref() {
             Some(PrivKey::SlhDsaShake128s(sk)) => {
                 PrivKey::SlhDsaShake128s(sk.clone())
@@ -719,16 +724,13 @@ impl Sign for SlhDsaOperation {
             _ => return err_rv!(CKR_KEY_HANDLE_INVALID),
         };
 
-        let signed_data = private_key
-            .try_sign(&self.data)
+        let sig = private_key
+            .try_sign_with_params(&self.data, &self.sign_ctx)
             .map_err(|_| to_rv!(CKR_FUNCTION_FAILED))?;
 
-        let encoded_signature: &[u8] = signed_data.as_ref();
+        let encoded_sig = sig.encode();
+        signature[..encoded_sig.len()].copy_from_slice(&encoded_sig);
 
-        if encoded_signature.len() != signlen {
-            return err_rv!(CKR_BUFFER_TOO_SMALL);
-        }
-        signature.copy_from_slice(encoded_signature);
         Ok(())
     }
 
@@ -773,37 +775,23 @@ impl Verify for SlhDsaOperation {
         }
         self.finalized = true;
 
-        let public_key = match self.public_key.as_ref() {
-            Some(PubKey::SlhDsaShake128s(pk)) => {
-                PubKey::SlhDsaShake128s(pk.clone())
-            }
-            Some(PubKey::SlhDsaShake128f(pk)) => {
-                PubKey::SlhDsaShake128f(pk.clone())
-            }
-            Some(PubKey::SlhDsaShake192s(pk)) => {
-                PubKey::SlhDsaShake192s(pk.clone())
-            }
-            Some(PubKey::SlhDsaShake192f(pk)) => {
-                PubKey::SlhDsaShake192f(pk.clone())
-            }
-            Some(PubKey::SlhDsaShake256s(pk)) => {
-                PubKey::SlhDsaShake256s(pk.clone())
-            }
-            Some(PubKey::SlhDsaShake256f(pk)) => {
-                PubKey::SlhDsaShake256f(pk.clone())
-            }
+        let message = self.data.clone();
+        let sig_buf = signature.to_vec();
+        let sign_ctx = self.sign_ctx.clone();
+
+        let public_key = match &self.public_key {
+            Some(pk) => Arc::clone(pk),
             _ => return err_rv!(CKR_KEY_HANDLE_INVALID),
         };
-
-        let message = self.data.clone();
-        let signature = signature.to_vec();
 
         let handle = std::thread::Builder::new()
             .name("slhdsa_verify_thread".into())
             .stack_size(4 * 1024 * 1024)
             .spawn(move || {
+                let sig = Signature::decode(&sig_buf)
+                    .map_err(|_| to_rv!(CKR_SIGNATURE_LEN_RANGE))?;
                 let result = public_key
-                    .verify(&message, &signature)
+                    .verify_with_params(&message, &sig, &sign_ctx)
                     .map_err(|_| to_rv!(CKR_SIGNATURE_INVALID));
                 result
             })
@@ -815,30 +803,14 @@ impl Verify for SlhDsaOperation {
                 to_rv!(CKR_FUNCTION_FAILED)
             })?;
 
-        let ret = handle
-            .join()
-            .map_err(|_| {
-                error!(
-                    target: crate::QRYPTOTOKEN_TARGET,
-                    "Thread panicked during verification"
-                );
-                to_rv!(CKR_FUNCTION_FAILED)
-            })?
-            .map_err(|e| {
-                error!(
-                    target: crate::QRYPTOTOKEN_TARGET,
-                    "Verification failed: {e:?}"
-                );
-                to_rv!(CKR_SIGNATURE_INVALID)
-            });
-
-        if ret.is_err() {
+        /* Propagate err_rv returned from thread */
+        handle.join().map_err(|_| {
             error!(
                 target: crate::QRYPTOTOKEN_TARGET,
-                "Internal verification failure"
+                "Thread panicked during signature decoding or verification"
             );
-            return ret;
-        }
+            to_rv!(CKR_FUNCTION_FAILED)
+        })??;
 
         debug!(
             target: crate::QRYPTOTOKEN_TARGET,
@@ -851,46 +823,4 @@ impl Verify for SlhDsaOperation {
     fn signature_len(&self) -> KResult<usize> {
         Ok(self.output_len)
     }
-}
-
-/// Determines the expected signature output length based on the provided
-/// public key object.
-///
-/// # Parameters
-///
-/// - `obj`: A reference to a PKCS#11 `Object`.
-///
-/// # Returns
-///
-/// - `Ok(usize)`: The expected signature length in bytes for the given key
-///                type.
-/// - `Err(CK_RV)`: Returns `CKR_ATTRIBUTE_VALUE_INVALID` if the parameter set
-///                 is invalid.
-///                 Returns `CKR_TEMPLATE_INCONSISTENT` if an attribute is
-///                 missing.
-fn make_output_length_from_obj(obj: &Object) -> KResult<usize> {
-    let param_set = match obj.get_attr_as_ulong(CKA_PARAMETER_SET) {
-        Ok(p) => match p {
-            CKP_SLH_DSA_SHAKE_128S
-            | CKP_SLH_DSA_SHAKE_128F
-            | CKP_SLH_DSA_SHAKE_192S
-            | CKP_SLH_DSA_SHAKE_192F
-            | CKP_SLH_DSA_SHAKE_256S
-            | CKP_SLH_DSA_SHAKE_256F => p,
-            _ => return err_rv!(CKR_ATTRIBUTE_VALUE_INVALID),
-        },
-        Err(_) => return err_rv!(CKR_TEMPLATE_INCONSISTENT),
-    };
-
-    let output_len = match param_set {
-        CKP_SLH_DSA_SHAKE_128S => SLH_DSA_SHAKE_128S_SIG_SIZE as usize,
-        CKP_SLH_DSA_SHAKE_128F => SLH_DSA_SHAKE_128F_SIG_SIZE as usize,
-        CKP_SLH_DSA_SHAKE_192S => SLH_DSA_SHAKE_192S_SIG_SIZE as usize,
-        CKP_SLH_DSA_SHAKE_192F => SLH_DSA_SHAKE_192F_SIG_SIZE as usize,
-        CKP_SLH_DSA_SHAKE_256S => SLH_DSA_SHAKE_256S_SIG_SIZE as usize,
-        CKP_SLH_DSA_SHAKE_256F => SLH_DSA_SHAKE_256F_SIG_SIZE as usize,
-        _ => return err_rv!(CKR_ATTRIBUTE_VALUE_INVALID),
-    };
-
-    Ok(output_len)
 }
