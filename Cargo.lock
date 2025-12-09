@@ -1234,6 +1234,7 @@ dependencies = [
  "signature 2.2.0",
  "slh-dsa",
  "thiserror",
+ "typenum",
  "uuid",
  "wycheproof 0.6.0 (git+https://github.com/eferollo/wycheproof-rs.git?branch=composite-mldsa-draft)",
  "zeroize",

@@ -58,6 +58,7 @@ slh-dsa = "0.2.0-rc.1"
 libcrux-ed25519 = { version = "0.0.2", features = ["rand"] }
 thiserror = "2.0.12"
 const_format = "0.2.35"
+typenum = "1.19.0"
 
 [features]
 default = [

@@ -2,26 +2,27 @@ use crate::adapters::error::{AResult, AdapterError};
 use rand_core::{OsRng, TryRngCore};
 use signature::{Signer, Verifier};
 use slh_dsa::{
-    signature::Keypair, Shake256s, Signature as SlhDsaSignature, SigningKey,
+    signature::Keypair, Signature as SlhDsaSignature, SignatureLen, SigningKey,
     VerifyingKey,
 };
+use slh_dsa::{Shake256s as ParamSet, SigningKeyLen, VerifyingKeyLen};
+use typenum::Unsigned;
 
 #[derive(Clone)]
-pub struct PubKey(Box<VerifyingKey<Shake256s>>);
+pub struct PubKey(Box<VerifyingKey<ParamSet>>);
 
 #[derive(Clone)]
-pub struct PrivKey(Box<SigningKey<Shake256s>>);
+pub struct PrivKey(Box<SigningKey<ParamSet>>);
 
-pub struct Signature(Box<SlhDsaSignature<Shake256s>>);
+pub struct Signature(Box<SlhDsaSignature<ParamSet>>);
 
 pub mod sizes {
     #![allow(dead_code)]
     use super::*;
 
-    pub(crate) const SLH_DSA_SHAKE_256S_PK_SIZE: usize = PubKey::output_len();
-    pub(crate) const SLH_DSA_SHAKE_256S_SK_SIZE: usize = PrivKey::output_len();
-    pub(crate) const SLH_DSA_SHAKE_256S_SIG_SIZE: usize =
-        Signature::output_len();
+    pub(crate) const PK_SIZE: usize = PubKey::output_len();
+    pub(crate) const SK_SIZE: usize = PrivKey::output_len();
+    pub(crate) const SIG_SIZE: usize = Signature::output_len();
 }
 
 impl std::fmt::Debug for PubKey {
@@ -68,7 +69,7 @@ impl Signature {
     }
 
     const fn output_len() -> usize {
-        return 29792;
+        <ParamSet as SignatureLen>::SigLen::USIZE
     }
 }
 
@@ -91,7 +92,7 @@ impl PubKey {
     }
 
     const fn output_len() -> usize {
-        return 64;
+        <ParamSet as VerifyingKeyLen>::VkLen::USIZE
     }
 }
 
@@ -101,7 +102,7 @@ impl Verifier<Signature> for PubKey {
         msg: &[u8],
         signature: &Signature,
     ) -> Result<(), signature::Error> {
-        VerifyingKey::<Shake256s>::try_verify_with_context(
+        VerifyingKey::<ParamSet>::try_verify_with_context(
             &self.0,
             msg,
             &[],
@@ -146,7 +147,7 @@ impl PubKey {
             ));
         }
 
-        VerifyingKey::<Shake256s>::try_verify_with_context(
+        VerifyingKey::<ParamSet>::try_verify_with_context(
             &self.0,
             msg,
             ctx,
@@ -184,7 +185,7 @@ impl PrivKey {
     }
 
     const fn output_len() -> usize {
-        return 128;
+        <ParamSet as SigningKeyLen>::SkLen::USIZE
     }
 }
 
@@ -196,7 +197,7 @@ impl Signer<Signature> for PrivKey {
             .try_fill_bytes(&mut rnd)
             .map_err(|e| AdapterError::RandomnessError(e))?;
 
-        let sig = SigningKey::<Shake256s>::try_sign_with_context(
+        let sig = SigningKey::<ParamSet>::try_sign_with_context(
             &self.0,
             msg,
             &[],
@@ -253,7 +254,7 @@ impl PrivKey {
             })?;
             Some(rnd)
         };
-        let sig = SigningKey::<Shake256s>::try_sign_with_context(
+        let sig = SigningKey::<ParamSet>::try_sign_with_context(
             &self.0,
             msg,
             ctx,
@@ -279,7 +280,7 @@ impl PrivKey {
 pub fn generate_key_pair() -> AResult<(PrivKey, PubKey)> {
     let mut rng = rand_slhdsa::rng();
 
-    let privkey = SigningKey::<Shake256s>::new(&mut rng);
+    let privkey = SigningKey::<ParamSet>::new(&mut rng);
 
     let sk = PrivKey(Box::new(privkey.clone()));
     let pk = PubKey(Box::new(privkey.verifying_key()));

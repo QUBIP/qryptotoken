@@ -7,36 +7,8 @@ use signature::{Signer, Verifier};
 
 #[cfg(feature = "rustcrypto")]
 use crate::adapters::rustcrypto::slhdsa::{
-    slhdsa_shake128f::{
-        generate_key_pair as generate_slhdsa_shake128f_key_pair, sizes::*,
-        PrivKey as SlhDsaShake128fPrivKey, PubKey as SlhDsaShake128fPubKey,
-        Signature as SlhDsaShake128fSignature,
-    },
-    slhdsa_shake128s::{
-        generate_key_pair as generate_slhdsa_shake128s_key_pair, sizes::*,
-        PrivKey as SlhDsaShake128sPrivKey, PubKey as SlhDsaShake128sPubKey,
-        Signature as SlhDsaShake128sSignature,
-    },
-    slhdsa_shake192f::{
-        generate_key_pair as generate_slhdsa_shake192f_key_pair, sizes::*,
-        PrivKey as SlhDsaShake192fPrivKey, PubKey as SlhDsaShake192fPubKey,
-        Signature as SlhDsaShake192fSignature,
-    },
-    slhdsa_shake192s::{
-        generate_key_pair as generate_slhdsa_shake192s_key_pair, sizes::*,
-        PrivKey as SlhDsaShake192sPrivKey, PubKey as SlhDsaShake192sPubKey,
-        Signature as SlhDsaShake192sSignature,
-    },
-    slhdsa_shake256f::{
-        generate_key_pair as generate_slhdsa_shake256f_key_pair, sizes::*,
-        PrivKey as SlhDsaShake256fPrivKey, PubKey as SlhDsaShake256fPubKey,
-        Signature as SlhDsaShake256fSignature,
-    },
-    slhdsa_shake256s::{
-        generate_key_pair as generate_slhdsa_shake256s_key_pair, sizes::*,
-        PrivKey as SlhDsaShake256sPrivKey, PubKey as SlhDsaShake256sPubKey,
-        Signature as SlhDsaShake256sSignature,
-    },
+    slhdsa_shake128f, slhdsa_shake128s, slhdsa_shake192f, slhdsa_shake192s,
+    slhdsa_shake256f, slhdsa_shake256s,
 };
 
 pub mod sizes {
@@ -44,36 +16,36 @@ pub mod sizes {
     use super::*;
 
     pub(crate) const MIN_SLH_DSA_SIZE_BITS: CK_ULONG =
-        (SLH_DSA_SHAKE_128S_PK_SIZE as CK_ULONG) << 3;
+        (slhdsa_shake128s::sizes::PK_SIZE as CK_ULONG) << 3;
     pub(crate) const MAX_SLH_DSA_SIZE_BITS: CK_ULONG =
-        (SLH_DSA_SHAKE_256F_SK_SIZE as CK_ULONG) << 3;
+        (slhdsa_shake256f::sizes::SK_SIZE as CK_ULONG) << 3;
 }
 
 pub enum PubKey {
-    SlhDsaShake128s(SlhDsaShake128sPubKey),
-    SlhDsaShake128f(SlhDsaShake128fPubKey),
-    SlhDsaShake192s(SlhDsaShake192sPubKey),
-    SlhDsaShake192f(SlhDsaShake192fPubKey),
-    SlhDsaShake256s(SlhDsaShake256sPubKey),
-    SlhDsaShake256f(SlhDsaShake256fPubKey),
+    SlhDsaShake128s(slhdsa_shake128s::PubKey),
+    SlhDsaShake128f(slhdsa_shake128f::PubKey),
+    SlhDsaShake192s(slhdsa_shake192s::PubKey),
+    SlhDsaShake192f(slhdsa_shake192f::PubKey),
+    SlhDsaShake256s(slhdsa_shake256s::PubKey),
+    SlhDsaShake256f(slhdsa_shake256f::PubKey),
 }
 
 pub enum PrivKey {
-    SlhDsaShake128s(SlhDsaShake128sPrivKey),
-    SlhDsaShake128f(SlhDsaShake128fPrivKey),
-    SlhDsaShake192s(SlhDsaShake192sPrivKey),
-    SlhDsaShake192f(SlhDsaShake192fPrivKey),
-    SlhDsaShake256s(SlhDsaShake256sPrivKey),
-    SlhDsaShake256f(SlhDsaShake256fPrivKey),
+    SlhDsaShake128s(slhdsa_shake128s::PrivKey),
+    SlhDsaShake128f(slhdsa_shake128f::PrivKey),
+    SlhDsaShake192s(slhdsa_shake192s::PrivKey),
+    SlhDsaShake192f(slhdsa_shake192f::PrivKey),
+    SlhDsaShake256s(slhdsa_shake256s::PrivKey),
+    SlhDsaShake256f(slhdsa_shake256f::PrivKey),
 }
 
 pub enum Signature {
-    SlhDsaShake128s(SlhDsaShake128sSignature),
-    SlhDsaShake128f(SlhDsaShake128fSignature),
-    SlhDsaShake192s(SlhDsaShake192sSignature),
-    SlhDsaShake192f(SlhDsaShake192fSignature),
-    SlhDsaShake256s(SlhDsaShake256sSignature),
-    SlhDsaShake256f(SlhDsaShake256fSignature),
+    SlhDsaShake128s(slhdsa_shake128s::Signature),
+    SlhDsaShake128f(slhdsa_shake128f::Signature),
+    SlhDsaShake192s(slhdsa_shake192s::Signature),
+    SlhDsaShake192f(slhdsa_shake192f::Signature),
+    SlhDsaShake256s(slhdsa_shake256s::Signature),
+    SlhDsaShake256f(slhdsa_shake256f::Signature),
 }
 
 impl std::fmt::Debug for PubKey {
@@ -151,57 +123,58 @@ impl Signature {
     }
 
     pub fn decode(bytes: &[u8]) -> KResult<Self> {
-        let res = match bytes.len() {
-            SLH_DSA_SHAKE_128S_SIG_SIZE => {
-                let sig =
-                    SlhDsaShake128sSignature::decode(bytes).map_err(|e| {
-                        log::error!("Decode error: {e:?}");
-                        to_rv!(CKR_SIGNATURE_LEN_RANGE)
-                    })?;
-                Signature::SlhDsaShake128s(sig)
-            }
-            SLH_DSA_SHAKE_128F_SIG_SIZE => {
-                let sig =
-                    SlhDsaShake128fSignature::decode(bytes).map_err(|e| {
-                        log::error!("Decode error: {e:?}");
-                        to_rv!(CKR_SIGNATURE_LEN_RANGE)
-                    })?;
-                Signature::SlhDsaShake128f(sig)
-            }
-            SLH_DSA_SHAKE_192S_SIG_SIZE => {
-                let sig =
-                    SlhDsaShake192sSignature::decode(bytes).map_err(|e| {
-                        log::error!("Decode error: {e:?}");
-                        to_rv!(CKR_SIGNATURE_LEN_RANGE)
-                    })?;
-                Signature::SlhDsaShake192s(sig)
-            }
-            SLH_DSA_SHAKE_192F_SIG_SIZE => {
-                let sig =
-                    SlhDsaShake192fSignature::decode(bytes).map_err(|e| {
-                        log::error!("Decode error: {e:?}");
-                        to_rv!(CKR_SIGNATURE_LEN_RANGE)
-                    })?;
-                Signature::SlhDsaShake192f(sig)
-            }
-            SLH_DSA_SHAKE_256S_SIG_SIZE => {
-                let sig =
-                    SlhDsaShake256sSignature::decode(bytes).map_err(|e| {
-                        log::error!("Decode error: {e:?}");
-                        to_rv!(CKR_SIGNATURE_LEN_RANGE)
-                    })?;
-                Signature::SlhDsaShake256s(sig)
-            }
-            SLH_DSA_SHAKE_256F_SIG_SIZE => {
-                let sig =
-                    SlhDsaShake256fSignature::decode(bytes).map_err(|e| {
-                        log::error!("Decode error: {e:?}");
-                        to_rv!(CKR_SIGNATURE_LEN_RANGE)
-                    })?;
-                Signature::SlhDsaShake256f(sig)
-            }
-            _ => return err_rv!(CKR_SIGNATURE_LEN_RANGE),
-        };
+        let res =
+            match bytes.len() {
+                slhdsa_shake128s::sizes::PK_SIZE => {
+                    let sig = slhdsa_shake128s::Signature::decode(bytes)
+                        .map_err(|e| {
+                            log::error!("Decode error: {e:?}");
+                            to_rv!(CKR_SIGNATURE_LEN_RANGE)
+                        })?;
+                    Signature::SlhDsaShake128s(sig)
+                }
+                slhdsa_shake128f::sizes::SIG_SIZE => {
+                    let sig = slhdsa_shake128f::Signature::decode(bytes)
+                        .map_err(|e| {
+                            log::error!("Decode error: {e:?}");
+                            to_rv!(CKR_SIGNATURE_LEN_RANGE)
+                        })?;
+                    Signature::SlhDsaShake128f(sig)
+                }
+                slhdsa_shake192s::sizes::SIG_SIZE => {
+                    let sig = slhdsa_shake192s::Signature::decode(bytes)
+                        .map_err(|e| {
+                            log::error!("Decode error: {e:?}");
+                            to_rv!(CKR_SIGNATURE_LEN_RANGE)
+                        })?;
+                    Signature::SlhDsaShake192s(sig)
+                }
+                slhdsa_shake192f::sizes::SIG_SIZE => {
+                    let sig = slhdsa_shake192f::Signature::decode(bytes)
+                        .map_err(|e| {
+                            log::error!("Decode error: {e:?}");
+                            to_rv!(CKR_SIGNATURE_LEN_RANGE)
+                        })?;
+                    Signature::SlhDsaShake192f(sig)
+                }
+                slhdsa_shake256s::sizes::SIG_SIZE => {
+                    let sig = slhdsa_shake256s::Signature::decode(bytes)
+                        .map_err(|e| {
+                            log::error!("Decode error: {e:?}");
+                            to_rv!(CKR_SIGNATURE_LEN_RANGE)
+                        })?;
+                    Signature::SlhDsaShake256s(sig)
+                }
+                slhdsa_shake256f::sizes::SIG_SIZE => {
+                    let sig = slhdsa_shake256f::Signature::decode(bytes)
+                        .map_err(|e| {
+                            log::error!("Decode error: {e:?}");
+                            to_rv!(CKR_SIGNATURE_LEN_RANGE)
+                        })?;
+                    Signature::SlhDsaShake256f(sig)
+                }
+                _ => return err_rv!(CKR_SIGNATURE_LEN_RANGE),
+            };
 
         Ok(res)
     }
@@ -231,69 +204,70 @@ impl PubKey {
             Err(_) => return err_rv!(CKR_TEMPLATE_INCONSISTENT),
         };
 
-        let res = match param_set {
-            CKP_SLH_DSA_SHAKE_128S => {
-                let pk =
-                    SlhDsaShake128sPubKey::decode(pk_bytes).map_err(|e| {
-                        log::error!("Decode error: {e:?}");
-                        to_rv!(CKR_ATTRIBUTE_VALUE_INVALID)
-                    })?;
-                PubKey::SlhDsaShake128s(pk)
-            }
-            CKP_SLH_DSA_SHAKE_128F => {
-                let pk =
-                    SlhDsaShake128fPubKey::decode(pk_bytes).map_err(|e| {
-                        log::error!("Decode error: {e:?}");
-                        to_rv!(CKR_ATTRIBUTE_VALUE_INVALID)
-                    })?;
-                PubKey::SlhDsaShake128f(pk)
-            }
-            CKP_SLH_DSA_SHAKE_192S => {
-                let pk =
-                    SlhDsaShake192sPubKey::decode(pk_bytes).map_err(|e| {
-                        log::error!("Decode error: {e:?}");
-                        to_rv!(CKR_ATTRIBUTE_VALUE_INVALID)
-                    })?;
-                PubKey::SlhDsaShake192s(pk)
-            }
-            CKP_SLH_DSA_SHAKE_192F => {
-                let pk =
-                    SlhDsaShake192fPubKey::decode(pk_bytes).map_err(|e| {
-                        log::error!("Decode error: {e:?}");
-                        to_rv!(CKR_ATTRIBUTE_VALUE_INVALID)
-                    })?;
-                PubKey::SlhDsaShake192f(pk)
-            }
-            CKP_SLH_DSA_SHAKE_256S => {
-                let pk =
-                    SlhDsaShake256sPubKey::decode(pk_bytes).map_err(|e| {
-                        log::error!("Decode error: {e:?}");
-                        to_rv!(CKR_ATTRIBUTE_VALUE_INVALID)
-                    })?;
-                PubKey::SlhDsaShake256s(pk)
-            }
-            CKP_SLH_DSA_SHAKE_256F => {
-                let pk =
-                    SlhDsaShake256fPubKey::decode(pk_bytes).map_err(|e| {
-                        log::error!("Decode error: {e:?}");
-                        to_rv!(CKR_ATTRIBUTE_VALUE_INVALID)
-                    })?;
-                PubKey::SlhDsaShake256f(pk)
-            }
-            _ => return err_rv!(CKR_ATTRIBUTE_VALUE_INVALID),
-        };
+        let res =
+            match param_set {
+                CKP_SLH_DSA_SHAKE_128S => {
+                    let pk = slhdsa_shake128s::PubKey::decode(pk_bytes)
+                        .map_err(|e| {
+                            log::error!("Decode error: {e:?}");
+                            to_rv!(CKR_ATTRIBUTE_VALUE_INVALID)
+                        })?;
+                    PubKey::SlhDsaShake128s(pk)
+                }
+                CKP_SLH_DSA_SHAKE_128F => {
+                    let pk = slhdsa_shake128f::PubKey::decode(pk_bytes)
+                        .map_err(|e| {
+                            log::error!("Decode error: {e:?}");
+                            to_rv!(CKR_ATTRIBUTE_VALUE_INVALID)
+                        })?;
+                    PubKey::SlhDsaShake128f(pk)
+                }
+                CKP_SLH_DSA_SHAKE_192S => {
+                    let pk = slhdsa_shake192s::PubKey::decode(pk_bytes)
+                        .map_err(|e| {
+                            log::error!("Decode error: {e:?}");
+                            to_rv!(CKR_ATTRIBUTE_VALUE_INVALID)
+                        })?;
+                    PubKey::SlhDsaShake192s(pk)
+                }
+                CKP_SLH_DSA_SHAKE_192F => {
+                    let pk = slhdsa_shake192f::PubKey::decode(pk_bytes)
+                        .map_err(|e| {
+                            log::error!("Decode error: {e:?}");
+                            to_rv!(CKR_ATTRIBUTE_VALUE_INVALID)
+                        })?;
+                    PubKey::SlhDsaShake192f(pk)
+                }
+                CKP_SLH_DSA_SHAKE_256S => {
+                    let pk = slhdsa_shake256s::PubKey::decode(pk_bytes)
+                        .map_err(|e| {
+                            log::error!("Decode error: {e:?}");
+                            to_rv!(CKR_ATTRIBUTE_VALUE_INVALID)
+                        })?;
+                    PubKey::SlhDsaShake256s(pk)
+                }
+                CKP_SLH_DSA_SHAKE_256F => {
+                    let pk = slhdsa_shake256f::PubKey::decode(pk_bytes)
+                        .map_err(|e| {
+                            log::error!("Decode error: {e:?}");
+                            to_rv!(CKR_ATTRIBUTE_VALUE_INVALID)
+                        })?;
+                    PubKey::SlhDsaShake256f(pk)
+                }
+                _ => return err_rv!(CKR_ATTRIBUTE_VALUE_INVALID),
+            };
 
         Ok(res)
     }
 
     pub const fn output_len(param_set: CK_ULONG) -> KResult<usize> {
         let len = match param_set {
-            CKP_SLH_DSA_SHAKE_128S => SLH_DSA_SHAKE_128S_PK_SIZE,
-            CKP_SLH_DSA_SHAKE_128F => SLH_DSA_SHAKE_128F_PK_SIZE,
-            CKP_SLH_DSA_SHAKE_192S => SLH_DSA_SHAKE_192S_PK_SIZE,
-            CKP_SLH_DSA_SHAKE_192F => SLH_DSA_SHAKE_192F_PK_SIZE,
-            CKP_SLH_DSA_SHAKE_256S => SLH_DSA_SHAKE_256S_PK_SIZE,
-            CKP_SLH_DSA_SHAKE_256F => SLH_DSA_SHAKE_256F_PK_SIZE,
+            CKP_SLH_DSA_SHAKE_128S => slhdsa_shake128s::sizes::PK_SIZE,
+            CKP_SLH_DSA_SHAKE_128F => slhdsa_shake128f::sizes::PK_SIZE,
+            CKP_SLH_DSA_SHAKE_192S => slhdsa_shake192s::sizes::PK_SIZE,
+            CKP_SLH_DSA_SHAKE_192F => slhdsa_shake192f::sizes::PK_SIZE,
+            CKP_SLH_DSA_SHAKE_256S => slhdsa_shake256s::sizes::PK_SIZE,
+            CKP_SLH_DSA_SHAKE_256F => slhdsa_shake256f::sizes::PK_SIZE,
             _ => return err_rv!(CKR_ATTRIBUTE_VALUE_INVALID),
         };
 
@@ -302,12 +276,12 @@ impl PubKey {
 
     pub const fn signature_len(param_set: CK_ULONG) -> KResult<usize> {
         let len = match param_set {
-            CKP_SLH_DSA_SHAKE_128S => SLH_DSA_SHAKE_128S_SIG_SIZE,
-            CKP_SLH_DSA_SHAKE_128F => SLH_DSA_SHAKE_128F_SIG_SIZE,
-            CKP_SLH_DSA_SHAKE_192S => SLH_DSA_SHAKE_192S_SIG_SIZE,
-            CKP_SLH_DSA_SHAKE_192F => SLH_DSA_SHAKE_192F_SIG_SIZE,
-            CKP_SLH_DSA_SHAKE_256S => SLH_DSA_SHAKE_256S_SIG_SIZE,
-            CKP_SLH_DSA_SHAKE_256F => SLH_DSA_SHAKE_256F_SIG_SIZE,
+            CKP_SLH_DSA_SHAKE_128S => slhdsa_shake128s::sizes::SIG_SIZE,
+            CKP_SLH_DSA_SHAKE_128F => slhdsa_shake128f::sizes::SIG_SIZE,
+            CKP_SLH_DSA_SHAKE_192S => slhdsa_shake192s::sizes::SIG_SIZE,
+            CKP_SLH_DSA_SHAKE_192F => slhdsa_shake192f::sizes::SIG_SIZE,
+            CKP_SLH_DSA_SHAKE_256S => slhdsa_shake256s::sizes::SIG_SIZE,
+            CKP_SLH_DSA_SHAKE_256F => slhdsa_shake256f::sizes::SIG_SIZE,
             _ => return err_rv!(CKR_ATTRIBUTE_VALUE_INVALID),
         };
 
@@ -417,69 +391,70 @@ impl PrivKey {
             Err(_) => return err_rv!(CKR_TEMPLATE_INCONSISTENT),
         };
 
-        let res = match param_set {
-            CKP_SLH_DSA_SHAKE_128S => {
-                let sk =
-                    SlhDsaShake128sPrivKey::decode(sk_bytes).map_err(|e| {
-                        log::error!("Decode error: {e:?}");
-                        to_rv!(CKR_ATTRIBUTE_VALUE_INVALID)
-                    })?;
-                PrivKey::SlhDsaShake128s(sk)
-            }
-            CKP_SLH_DSA_SHAKE_128F => {
-                let sk =
-                    SlhDsaShake128fPrivKey::decode(sk_bytes).map_err(|e| {
-                        log::error!("Decode error: {e:?}");
-                        to_rv!(CKR_ATTRIBUTE_VALUE_INVALID)
-                    })?;
-                PrivKey::SlhDsaShake128f(sk)
-            }
-            CKP_SLH_DSA_SHAKE_192S => {
-                let sk =
-                    SlhDsaShake192sPrivKey::decode(sk_bytes).map_err(|e| {
-                        log::error!("Decode error: {e:?}");
-                        to_rv!(CKR_ATTRIBUTE_VALUE_INVALID)
-                    })?;
-                PrivKey::SlhDsaShake192s(sk)
-            }
-            CKP_SLH_DSA_SHAKE_192F => {
-                let sk =
-                    SlhDsaShake192fPrivKey::decode(sk_bytes).map_err(|e| {
-                        log::error!("Decode error: {e:?}");
-                        to_rv!(CKR_ATTRIBUTE_VALUE_INVALID)
-                    })?;
-                PrivKey::SlhDsaShake192f(sk)
-            }
-            CKP_SLH_DSA_SHAKE_256S => {
-                let sk =
-                    SlhDsaShake256sPrivKey::decode(sk_bytes).map_err(|e| {
-                        log::error!("Decode error: {e:?}");
-                        to_rv!(CKR_ATTRIBUTE_VALUE_INVALID)
-                    })?;
-                PrivKey::SlhDsaShake256s(sk)
-            }
-            CKP_SLH_DSA_SHAKE_256F => {
-                let sk =
-                    SlhDsaShake256fPrivKey::decode(sk_bytes).map_err(|e| {
-                        log::error!("Decode error: {e:?}");
-                        to_rv!(CKR_ATTRIBUTE_VALUE_INVALID)
-                    })?;
-                PrivKey::SlhDsaShake256f(sk)
-            }
-            _ => return err_rv!(CKR_ATTRIBUTE_VALUE_INVALID),
-        };
+        let res =
+            match param_set {
+                CKP_SLH_DSA_SHAKE_128S => {
+                    let sk = slhdsa_shake128s::PrivKey::decode(sk_bytes)
+                        .map_err(|e| {
+                            log::error!("Decode error: {e:?}");
+                            to_rv!(CKR_ATTRIBUTE_VALUE_INVALID)
+                        })?;
+                    PrivKey::SlhDsaShake128s(sk)
+                }
+                CKP_SLH_DSA_SHAKE_128F => {
+                    let sk = slhdsa_shake128f::PrivKey::decode(sk_bytes)
+                        .map_err(|e| {
+                            log::error!("Decode error: {e:?}");
+                            to_rv!(CKR_ATTRIBUTE_VALUE_INVALID)
+                        })?;
+                    PrivKey::SlhDsaShake128f(sk)
+                }
+                CKP_SLH_DSA_SHAKE_192S => {
+                    let sk = slhdsa_shake192s::PrivKey::decode(sk_bytes)
+                        .map_err(|e| {
+                            log::error!("Decode error: {e:?}");
+                            to_rv!(CKR_ATTRIBUTE_VALUE_INVALID)
+                        })?;
+                    PrivKey::SlhDsaShake192s(sk)
+                }
+                CKP_SLH_DSA_SHAKE_192F => {
+                    let sk = slhdsa_shake192f::PrivKey::decode(sk_bytes)
+                        .map_err(|e| {
+                            log::error!("Decode error: {e:?}");
+                            to_rv!(CKR_ATTRIBUTE_VALUE_INVALID)
+                        })?;
+                    PrivKey::SlhDsaShake192f(sk)
+                }
+                CKP_SLH_DSA_SHAKE_256S => {
+                    let sk = slhdsa_shake256s::PrivKey::decode(sk_bytes)
+                        .map_err(|e| {
+                            log::error!("Decode error: {e:?}");
+                            to_rv!(CKR_ATTRIBUTE_VALUE_INVALID)
+                        })?;
+                    PrivKey::SlhDsaShake256s(sk)
+                }
+                CKP_SLH_DSA_SHAKE_256F => {
+                    let sk = slhdsa_shake256f::PrivKey::decode(sk_bytes)
+                        .map_err(|e| {
+                            log::error!("Decode error: {e:?}");
+                            to_rv!(CKR_ATTRIBUTE_VALUE_INVALID)
+                        })?;
+                    PrivKey::SlhDsaShake256f(sk)
+                }
+                _ => return err_rv!(CKR_ATTRIBUTE_VALUE_INVALID),
+            };
 
         Ok(res)
     }
 
     pub const fn output_len(param_set: CK_ULONG) -> KResult<usize> {
         let len = match param_set {
-            CKP_SLH_DSA_SHAKE_128S => SLH_DSA_SHAKE_128S_SK_SIZE,
-            CKP_SLH_DSA_SHAKE_128F => SLH_DSA_SHAKE_128F_SK_SIZE,
-            CKP_SLH_DSA_SHAKE_192S => SLH_DSA_SHAKE_192S_SK_SIZE,
-            CKP_SLH_DSA_SHAKE_192F => SLH_DSA_SHAKE_192F_SK_SIZE,
-            CKP_SLH_DSA_SHAKE_256S => SLH_DSA_SHAKE_256S_SK_SIZE,
-            CKP_SLH_DSA_SHAKE_256F => SLH_DSA_SHAKE_256F_SK_SIZE,
+            CKP_SLH_DSA_SHAKE_128S => slhdsa_shake128s::sizes::SK_SIZE,
+            CKP_SLH_DSA_SHAKE_128F => slhdsa_shake128f::sizes::SK_SIZE,
+            CKP_SLH_DSA_SHAKE_192S => slhdsa_shake192s::sizes::SK_SIZE,
+            CKP_SLH_DSA_SHAKE_192F => slhdsa_shake192f::sizes::SK_SIZE,
+            CKP_SLH_DSA_SHAKE_256S => slhdsa_shake256s::sizes::SK_SIZE,
+            CKP_SLH_DSA_SHAKE_256F => slhdsa_shake256f::sizes::SK_SIZE,
             _ => return err_rv!(CKR_ATTRIBUTE_VALUE_INVALID),
         };
 
@@ -488,12 +463,12 @@ impl PrivKey {
 
     pub const fn signature_len(param_set: CK_ULONG) -> KResult<usize> {
         let len = match param_set {
-            CKP_SLH_DSA_SHAKE_128S => SLH_DSA_SHAKE_128S_SIG_SIZE,
-            CKP_SLH_DSA_SHAKE_128F => SLH_DSA_SHAKE_128F_SIG_SIZE,
-            CKP_SLH_DSA_SHAKE_192S => SLH_DSA_SHAKE_192S_SIG_SIZE,
-            CKP_SLH_DSA_SHAKE_192F => SLH_DSA_SHAKE_192F_SIG_SIZE,
-            CKP_SLH_DSA_SHAKE_256S => SLH_DSA_SHAKE_256S_SIG_SIZE,
-            CKP_SLH_DSA_SHAKE_256F => SLH_DSA_SHAKE_256F_SIG_SIZE,
+            CKP_SLH_DSA_SHAKE_128S => slhdsa_shake128s::sizes::SIG_SIZE,
+            CKP_SLH_DSA_SHAKE_128F => slhdsa_shake128f::sizes::SIG_SIZE,
+            CKP_SLH_DSA_SHAKE_192S => slhdsa_shake192s::sizes::SIG_SIZE,
+            CKP_SLH_DSA_SHAKE_192F => slhdsa_shake192f::sizes::SIG_SIZE,
+            CKP_SLH_DSA_SHAKE_256S => slhdsa_shake256s::sizes::SIG_SIZE,
+            CKP_SLH_DSA_SHAKE_256F => slhdsa_shake256f::sizes::SIG_SIZE,
             _ => return err_rv!(CKR_ATTRIBUTE_VALUE_INVALID),
         };
 
@@ -603,7 +578,7 @@ pub fn generate_key_pair(param_set: CK_ULONG) -> KResult<(PrivKey, PubKey)> {
     match param_set {
         CKP_SLH_DSA_SHAKE_128S => {
             let (sk, pk) =
-                generate_slhdsa_shake128s_key_pair().map_err(|e| {
+                slhdsa_shake128s::generate_key_pair().map_err(|e| {
                     log::error!(
                         "SLH-DSA-SHAKE128s key pair generation error: {e:?}"
                     );
@@ -613,7 +588,7 @@ pub fn generate_key_pair(param_set: CK_ULONG) -> KResult<(PrivKey, PubKey)> {
         }
         CKP_SLH_DSA_SHAKE_128F => {
             let (sk, pk) =
-                generate_slhdsa_shake128f_key_pair().map_err(|e| {
+                slhdsa_shake128f::generate_key_pair().map_err(|e| {
                     log::error!(
                         "SLH-DSA-SHAKE128f key pair generation error: {e:?}"
                     );
@@ -623,7 +598,7 @@ pub fn generate_key_pair(param_set: CK_ULONG) -> KResult<(PrivKey, PubKey)> {
         }
         CKP_SLH_DSA_SHAKE_192S => {
             let (sk, pk) =
-                generate_slhdsa_shake192s_key_pair().map_err(|e| {
+                slhdsa_shake192s::generate_key_pair().map_err(|e| {
                     log::error!(
                         "SLH-DSA-SHAKE192s key pair generation error: {e:?}"
                     );
@@ -633,7 +608,7 @@ pub fn generate_key_pair(param_set: CK_ULONG) -> KResult<(PrivKey, PubKey)> {
         }
         CKP_SLH_DSA_SHAKE_192F => {
             let (sk, pk) =
-                generate_slhdsa_shake192f_key_pair().map_err(|e| {
+                slhdsa_shake192f::generate_key_pair().map_err(|e| {
                     log::error!(
                         "SLH-DSA-SHAKE192f key pair generation error: {e:?}"
                     );
@@ -643,7 +618,7 @@ pub fn generate_key_pair(param_set: CK_ULONG) -> KResult<(PrivKey, PubKey)> {
         }
         CKP_SLH_DSA_SHAKE_256S => {
             let (sk, pk) =
-                generate_slhdsa_shake256s_key_pair().map_err(|e| {
+                slhdsa_shake256s::generate_key_pair().map_err(|e| {
                     log::error!(
                         "SLH-DSA-SHAKE256s key pair generation error: {e:?}"
                     );
@@ -653,7 +628,7 @@ pub fn generate_key_pair(param_set: CK_ULONG) -> KResult<(PrivKey, PubKey)> {
         }
         CKP_SLH_DSA_SHAKE_256F => {
             let (sk, pk) =
-                generate_slhdsa_shake256f_key_pair().map_err(|e| {
+                slhdsa_shake256f::generate_key_pair().map_err(|e| {
                     log::error!(
                         "SLH-DSA-SHAKE256f key pair generation error: {e:?}"
                     );
