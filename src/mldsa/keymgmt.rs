@@ -3,56 +3,41 @@ use crate::interface::*;
 use crate::mldsa::MlDsaSignAddCtx;
 use crate::object::*;
 use crate::{err_rv, to_rv};
-use libcrux_ml_dsa::KEY_GENERATION_RANDOMNESS_SIZE;
 use signature::{Signer, Verifier};
 
 #[cfg(feature = "libcrux")]
-use crate::adapters::libcrux::mldsa::{
-    mldsa44::{
-        generate_key_pair as generate_mldsa44_key_pair, sizes::*,
-        PrivKey as MlDsa44PrivKey, PubKey as MlDsa44PubKey,
-        Signature as MlDsa44Signature,
-    },
-    mldsa65::{
-        generate_key_pair as generate_mldsa65_key_pair, sizes::*,
-        PrivKey as MlDsa65PrivKey, PubKey as MlDsa65PubKey,
-        Signature as MlDsa65Signature,
-    },
-    mldsa87::{
-        generate_key_pair as generate_mldsa87_key_pair, sizes::*,
-        PrivKey as MlDsa87PrivKey, PubKey as MlDsa87PubKey,
-        Signature as MlDsa87Signature,
-    },
-};
+use crate::adapters::libcrux::mldsa::{mldsa44, mldsa65, mldsa87};
+#[cfg(feature = "libcrux")]
+use libcrux_ml_dsa::KEY_GENERATION_RANDOMNESS_SIZE;
 
 pub mod sizes {
     #![allow(dead_code)]
     use super::*;
 
     pub(crate) const MIN_ML_DSA_SIZE_BITS: CK_ULONG =
-        (ML_DSA_44_PK_SIZE as CK_ULONG) << 3;
+        (mldsa44::sizes::PK_SIZE as CK_ULONG) << 3;
     pub(crate) const MAX_ML_DSA_SIZE_BITS: CK_ULONG =
-        (ML_DSA_87_SK_SIZE as CK_ULONG) << 3;
+        (mldsa87::sizes::SK_SIZE as CK_ULONG) << 3;
     pub(crate) const KEY_GEN_RND_SIZE: usize = KEY_GENERATION_RANDOMNESS_SIZE;
 }
 use sizes::*;
 
 pub enum PubKey {
-    MlDsa44(MlDsa44PubKey),
-    MlDsa65(MlDsa65PubKey),
-    MlDsa87(MlDsa87PubKey),
+    MlDsa44(mldsa44::PubKey),
+    MlDsa65(mldsa65::PubKey),
+    MlDsa87(mldsa87::PubKey),
 }
 
 pub enum PrivKey {
-    MlDsa44(MlDsa44PrivKey),
-    MlDsa65(MlDsa65PrivKey),
-    MlDsa87(MlDsa87PrivKey),
+    MlDsa44(mldsa44::PrivKey),
+    MlDsa65(mldsa65::PrivKey),
+    MlDsa87(mldsa87::PrivKey),
 }
 
 pub enum Signature {
-    MlDsa44(MlDsa44Signature),
-    MlDsa65(MlDsa65Signature),
-    MlDsa87(MlDsa87Signature),
+    MlDsa44(mldsa44::Signature),
+    MlDsa65(mldsa65::Signature),
+    MlDsa87(mldsa87::Signature),
 }
 
 impl std::fmt::Debug for PubKey {
@@ -104,22 +89,22 @@ impl Signature {
 
     pub fn decode(bytes: &[u8]) -> KResult<Self> {
         let res = match bytes.len() {
-            ML_DSA_44_SIG_SIZE => {
-                let sig = MlDsa44Signature::decode(bytes).map_err(|e| {
+            mldsa44::sizes::SIG_SIZE => {
+                let sig = mldsa44::Signature::decode(bytes).map_err(|e| {
                     log::error!("Decode error: {e:?}");
                     to_rv!(CKR_SIGNATURE_LEN_RANGE)
                 })?;
                 Signature::MlDsa44(sig)
             }
-            ML_DSA_65_SIG_SIZE => {
-                let sig = MlDsa65Signature::decode(bytes).map_err(|e| {
+            mldsa65::sizes::SIG_SIZE => {
+                let sig = mldsa65::Signature::decode(bytes).map_err(|e| {
                     log::error!("Decode error: {e:?}");
                     to_rv!(CKR_SIGNATURE_LEN_RANGE)
                 })?;
                 Signature::MlDsa65(sig)
             }
-            ML_DSA_87_SIG_SIZE => {
-                let sig = MlDsa87Signature::decode(bytes).map_err(|e| {
+            mldsa87::sizes::SIG_SIZE => {
+                let sig = mldsa87::Signature::decode(bytes).map_err(|e| {
                     log::error!("Decode error: {e:?}");
                     to_rv!(CKR_SIGNATURE_LEN_RANGE)
                 })?;
@@ -155,14 +140,14 @@ impl PubKey {
 
         let res = match param_set {
             CKP_ML_DSA_44 => {
-                let pk = MlDsa44PubKey::decode(pk_bytes).map_err(|e| {
+                let pk = mldsa44::PubKey::decode(pk_bytes).map_err(|e| {
                     log::error!("Decode error: {e:?}");
                     to_rv!(CKR_ATTRIBUTE_VALUE_INVALID)
                 })?;
                 PubKey::MlDsa44(pk)
             }
             CKP_ML_DSA_65 => {
-                let pk = MlDsa65PubKey::decode(pk_bytes).map_err(|e| {
+                let pk = mldsa65::PubKey::decode(pk_bytes).map_err(|e| {
                     log::error!("Decode error: {e:?}");
                     to_rv!(CKR_ATTRIBUTE_VALUE_INVALID)
                 })?;
@@ -170,7 +155,7 @@ impl PubKey {
                 PubKey::MlDsa65(pk)
             }
             CKP_ML_DSA_87 => {
-                let pk = MlDsa87PubKey::decode(pk_bytes).map_err(|e| {
+                let pk = mldsa87::PubKey::decode(pk_bytes).map_err(|e| {
                     log::error!("Decode error: {e:?}");
                     to_rv!(CKR_ATTRIBUTE_VALUE_INVALID)
                 })?;
@@ -185,9 +170,9 @@ impl PubKey {
 
     pub const fn output_len(param_set: CK_ULONG) -> KResult<usize> {
         let len = match param_set {
-            CKP_ML_DSA_44 => ML_DSA_44_PK_SIZE,
-            CKP_ML_DSA_65 => ML_DSA_65_PK_SIZE,
-            CKP_ML_DSA_87 => ML_DSA_87_PK_SIZE,
+            CKP_ML_DSA_44 => mldsa44::sizes::PK_SIZE,
+            CKP_ML_DSA_65 => mldsa65::sizes::PK_SIZE,
+            CKP_ML_DSA_87 => mldsa87::sizes::PK_SIZE,
             _ => return err_rv!(CKR_ATTRIBUTE_VALUE_INVALID),
         };
 
@@ -196,9 +181,9 @@ impl PubKey {
 
     pub const fn signature_len(param_set: CK_ULONG) -> KResult<usize> {
         let len = match param_set {
-            CKP_ML_DSA_44 => ML_DSA_44_SIG_SIZE,
-            CKP_ML_DSA_65 => ML_DSA_65_SIG_SIZE,
-            CKP_ML_DSA_87 => ML_DSA_87_SIG_SIZE,
+            CKP_ML_DSA_44 => mldsa44::sizes::SIG_SIZE,
+            CKP_ML_DSA_65 => mldsa65::sizes::SIG_SIZE,
+            CKP_ML_DSA_87 => mldsa87::sizes::SIG_SIZE,
             _ => return err_rv!(CKR_ATTRIBUTE_VALUE_INVALID),
         };
 
@@ -293,14 +278,14 @@ impl PrivKey {
 
         let res = match param_set {
             CKP_ML_DSA_44 => {
-                let sk = MlDsa44PrivKey::decode(sk_bytes).map_err(|e| {
+                let sk = mldsa44::PrivKey::decode(sk_bytes).map_err(|e| {
                     log::error!("Decode error: {e:?}");
                     to_rv!(CKR_ATTRIBUTE_VALUE_INVALID)
                 })?;
                 PrivKey::MlDsa44(sk)
             }
             CKP_ML_DSA_65 => {
-                let sk = MlDsa65PrivKey::decode(sk_bytes).map_err(|e| {
+                let sk = mldsa65::PrivKey::decode(sk_bytes).map_err(|e| {
                     log::error!("Decode error: {e:?}");
                     to_rv!(CKR_ATTRIBUTE_VALUE_INVALID)
                 })?;
@@ -308,7 +293,7 @@ impl PrivKey {
                 PrivKey::MlDsa65(sk)
             }
             CKP_ML_DSA_87 => {
-                let sk = MlDsa87PrivKey::decode(sk_bytes).map_err(|e| {
+                let sk = mldsa87::PrivKey::decode(sk_bytes).map_err(|e| {
                     log::error!("Decode error: {e:?}");
                     to_rv!(CKR_ATTRIBUTE_VALUE_INVALID)
                 })?;
@@ -323,9 +308,9 @@ impl PrivKey {
 
     pub const fn output_len(param_set: CK_ULONG) -> KResult<usize> {
         let len = match param_set {
-            CKP_ML_DSA_44 => ML_DSA_44_SK_SIZE,
-            CKP_ML_DSA_65 => ML_DSA_65_SK_SIZE,
-            CKP_ML_DSA_87 => ML_DSA_87_SK_SIZE,
+            CKP_ML_DSA_44 => mldsa44::sizes::SK_SIZE,
+            CKP_ML_DSA_65 => mldsa65::sizes::SK_SIZE,
+            CKP_ML_DSA_87 => mldsa87::sizes::SK_SIZE,
             _ => return err_rv!(CKR_ATTRIBUTE_VALUE_INVALID),
         };
 
@@ -334,9 +319,9 @@ impl PrivKey {
 
     pub const fn signature_len(param_set: CK_ULONG) -> KResult<usize> {
         let len = match param_set {
-            CKP_ML_DSA_44 => ML_DSA_44_SIG_SIZE,
-            CKP_ML_DSA_65 => ML_DSA_65_SIG_SIZE,
-            CKP_ML_DSA_87 => ML_DSA_87_SIG_SIZE,
+            CKP_ML_DSA_44 => mldsa44::sizes::SIG_SIZE,
+            CKP_ML_DSA_65 => mldsa65::sizes::SIG_SIZE,
+            CKP_ML_DSA_87 => mldsa87::sizes::SIG_SIZE,
             _ => return err_rv!(CKR_ATTRIBUTE_VALUE_INVALID),
         };
 
@@ -425,21 +410,21 @@ pub fn generate_key_pair(
 ) -> KResult<(PrivKey, PubKey)> {
     match param_set {
         CKP_ML_DSA_44 => {
-            let (sk, pk) = generate_mldsa44_key_pair(rnd).map_err(|e| {
+            let (sk, pk) = mldsa44::generate_key_pair(rnd).map_err(|e| {
                 log::error!("ML-DSA-44 key pair generation error: {e:?}");
                 to_rv!(CKR_FUNCTION_FAILED)
             })?;
             Ok((PrivKey::MlDsa44(sk), PubKey::MlDsa44(pk)))
         }
         CKP_ML_DSA_65 => {
-            let (sk, pk) = generate_mldsa65_key_pair(rnd).map_err(|e| {
+            let (sk, pk) = mldsa65::generate_key_pair(rnd).map_err(|e| {
                 log::error!("ML-DSA-65 key pair generation error: {e:?}");
                 to_rv!(CKR_FUNCTION_FAILED)
             })?;
             Ok((PrivKey::MlDsa65(sk), PubKey::MlDsa65(pk)))
         }
         CKP_ML_DSA_87 => {
-            let (sk, pk) = generate_mldsa87_key_pair(rnd).map_err(|e| {
+            let (sk, pk) = mldsa87::generate_key_pair(rnd).map_err(|e| {
                 log::error!("ML-DSA-87 key pair generation error: {e:?}");
                 to_rv!(CKR_FUNCTION_FAILED)
             })?;

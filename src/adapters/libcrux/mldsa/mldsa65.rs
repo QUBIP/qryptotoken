@@ -20,9 +20,9 @@ pub mod sizes {
     #![allow(dead_code)]
     use super::*;
 
-    pub(crate) const ML_DSA_65_PK_SIZE: usize = PubKey::output_len();
-    pub(crate) const ML_DSA_65_SK_SIZE: usize = PrivKey::output_len();
-    pub(crate) const ML_DSA_65_SIG_SIZE: usize = Signature::output_len();
+    pub(crate) const PK_SIZE: usize = PubKey::output_len();
+    pub(crate) const SK_SIZE: usize = PrivKey::output_len();
+    pub(crate) const SIG_SIZE: usize = Signature::output_len();
 }
 
 impl std::fmt::Debug for PubKey {
