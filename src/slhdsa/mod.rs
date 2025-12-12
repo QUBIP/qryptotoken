@@ -357,7 +357,7 @@ impl Mechanism for SlhDsaMechanism {
         let mut private_key =
             PRIVATE_KEY_FACTORY.default_object_generate(prikey_template)?;
 
-        /* Ensure the CKA_CLASS atribute is set to CKO_PUBLIC_KEY*/
+        /* Ensure the CKA_CLASS atribute is set to CKO_PRIVATE_KEY */
         if !private_key
             .check_or_set_attr(from_ulong(CKA_CLASS, CKO_PRIVATE_KEY))?
         {
