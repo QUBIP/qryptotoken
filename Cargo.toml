@@ -15,6 +15,8 @@ bindgen = "0.72"
 [dev-dependencies]
 hex = "0.4.3"
 env_logger = "0.11.7"
+wycheproof = { git = "https://github.com/eferollo/wycheproof-rs.git", branch = "composite-mldsa-draft" }
+base64 = "0.22.1"
 
 [dependencies]
 env_logger = { version = "0.11.7", optional = true }
@@ -53,13 +55,17 @@ libcrux-ml-kem = "0.0.2"
 libcrux-ml-dsa = { git = "https://github.com/cryspen/libcrux.git", rev = "b80be51c4c7a320c00bf8af2b7a6703f53eb649b", version = "0.0.2" }
 slh-dsa = "0.0.3"
 libcrux-ed25519 = { version = "0.0.2", features = ["rand"] }
-base64 = "0.22.1"
 thiserror = "2.0.12"
 const_format = "0.2.35"
-wycheproof = { git = "https://github.com/eferollo/wycheproof-rs.git", branch = "composite-mldsa-draft" }
 
 [features]
-default = ["pure-rust", "env_logger", "libcrux", "rustcrypto", "_composite_sigs_draft_13"]
+default = [
+  "pure-rust",
+  "env_logger",
+  "libcrux",
+  "rustcrypto",
+  "_composite_sigs_draft_13",
+]
 
 env_logger = ["dep:env_logger"]
 ossl = []
